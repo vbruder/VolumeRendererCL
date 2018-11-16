@@ -39,6 +39,7 @@ struct Properties
     std::array<double, 3> slice_thickness = {{1.0, 1.0, 1.0}};
     std::string format = "";     // UCHAR, USHORT, FLOAT
     std::string node_file_name = "";
+    std::string image_channel_order = "R";
     unsigned int time_series = {1};
 
     const std::string to_string() const
@@ -53,7 +54,7 @@ struct Properties
         {
             str += std::to_string(v) + " ";
         }
-        str += "| Format: " + format;
+        str += "| Format: " + format + " " + image_channel_order;
         return str;
     }
 };

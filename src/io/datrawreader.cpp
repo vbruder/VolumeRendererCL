@@ -155,7 +155,7 @@ void DatRawReader::read_dat(const std::string dat_file_name)
             {
                 for (size_t i = 1; i < std::min(l.size(), static_cast<size_t>(5)); ++i)
                 {
-                    _prop.volume_res.at(i - 1) = std::stoul(l.at(i));
+                    _prop.volume_res.at(i - 1) = static_cast<unsigned int>(std::stoi(l.at(i)));
                 }
             }
             else if (name.find("SliceThickness") != std::string::npos && l.size() > 3u)
@@ -175,13 +175,17 @@ void DatRawReader::read_dat(const std::string dat_file_name)
             {
                 _prop.format = l.at(1);
             }
+            else if (name.find("ChannelOrder") != std::string::npos && l.size() > 1u)
+            {
+                _prop.image_channel_order = l.at(1);
+            }
             else if (name.find("Nodes") != std::string::npos && l.size() > 1u)
             {
                 _prop.node_file_name = l.at(1);
             }
             else if (name.find("TimeSeries") != std::string::npos && l.size() > 1u)
             {
-                _prop.volume_res.at(3) = std::stoul(l.at(1));
+                _prop.volume_res.at(3) = static_cast<unsigned int>(std::stoi(l.at(1)));
             }
         }
     }
@@ -196,7 +200,7 @@ void DatRawReader::read_dat(const std::string dat_file_name)
         std::size_t first = _prop.raw_file_names.at(0).find_first_of("0123456789");
         std::size_t last = _prop.raw_file_names.at(0).find_last_of("0123456789");
         int number = stoi(_prop.raw_file_names.at(0).substr(first, last));
-        int digits = last-first + 1;
+        int digits = static_cast<int>(last-first + 1);
         std::string base = _prop.raw_file_names.at(0).substr(0, first);
         for (std::size_t i = 0; i < _prop.volume_res.at(3) - 1; ++i)
         {
@@ -303,9 +307,9 @@ void DatRawReader::read_raw(const std::string raw_file_name)
             && std::none_of(std::begin(_prop.volume_res),
                             std::end(_prop.volume_res), [](int i){return i == 0;}))
     {
-        unsigned int bytes = _raw_data.at(0).size() / (static_cast<size_t>(_prop.volume_res[0]) *
-                                                       static_cast<size_t>(_prop.volume_res[1]) *
-                                                       static_cast<size_t>(_prop.volume_res[2]));
+        size_t bytes = _raw_data.at(0).size() / (static_cast<size_t>(_prop.volume_res[0]) *
+                                                 static_cast<size_t>(_prop.volume_res[1]) *
+                                                 static_cast<size_t>(_prop.volume_res[2]));
         switch (bytes)
         {
         case 1:

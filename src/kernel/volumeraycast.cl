@@ -588,31 +588,39 @@ __kernel void volumeRender(  __read_only image3d_t volData
             }
             else    // density based shading and optional illumination
             {
-                density = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x :
-                                      read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
-                tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
-                if (tfColor.w > 0.1f && illumType)
+                if (get_image_channel_order(volData) == CLK_R)
                 {
-                    if (illumType == 1)         // central diff
-                        gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
-                    else if (illumType == 2)    // central diff & transfer function
-                        gradient = -gradientCentralDiffTff(volData, (float4)(pos, 1.f), tffData);
-                    else if (illumType == 3)    // sobel filter
-                        gradient = -gradientSobel(volData, (float4)(pos, 1.f));
-
-                    if (illumType == 5)
+                    density = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x
+                                        : read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
+                    tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
+                    if (tfColor.w > 0.1f && illumType)
                     {
-                        gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
-                        tfColor.xyz = celShading(tfColor.xyz, -rayDir, gradient.xyz);
+                        if (illumType == 1)         // central diff
+                            gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                        else if (illumType == 2)    // central diff & transfer function
+                            gradient = -gradientCentralDiffTff(volData, (float4)(pos, 1.f), tffData);
+                        else if (illumType == 3)    // sobel filter
+                            gradient = -gradientSobel(volData, (float4)(pos, 1.f));
+
+                        if (illumType == 5)
+                        {
+                            gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                            tfColor.xyz = celShading(tfColor.xyz, -rayDir, gradient.xyz);
+                        }
+                        else
+                            tfColor.xyz = illumination((float4)(pos, 1.f), tfColor.xyz, -rayDir, gradient.xyz);
                     }
-                    else
-                        tfColor.xyz = illumination((float4)(pos, 1.f), tfColor.xyz, -rayDir, gradient.xyz);
+                    if (tfColor.w > 0.1f && contours) // edge enhancement
+                    {
+                        if (!illumType) // no illumination
+                            gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                        tfColor.xyz *= fabs(dot(rayDir, gradient.xyz));
+                    }
                 }
-                if (tfColor.w > 0.1f && contours) // edge enhancement
+                else if (get_image_channel_order(volData) == CLK_RGBA)
                 {
-                    if (!illumType) // no illumination
-                        gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
-                    tfColor.xyz *= fabs(dot(rayDir, gradient.xyz));
+                    tfColor = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
+                                        : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
                 }
             }
             tfColor.xyz = background.xyz - tfColor.xyz;
