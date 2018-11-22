@@ -30,6 +30,7 @@
 #include <iterator>
 #include <cassert>
 #include <math.h>
+#include <omp.h>
 
 /*
  * DatRawReader::read_files
@@ -175,7 +176,8 @@ void DatRawReader::read_dat(const std::string dat_file_name)
             {
                 _prop.format = l.at(1);
             }
-            else if (name.find("ChannelOrder") != std::string::npos && l.size() > 1u)
+            else if ((   name.find("ChannelOrder") != std::string::npos
+                      || name.find("ObjectModel") != std::string::npos) && l.size() > 1u)
             {
                 _prop.image_channel_order = l.at(1);
             }
@@ -242,6 +244,13 @@ void DatRawReader::read_dat(const std::string dat_file_name)
     }
 }
 
+template <class T>
+void endswap(T *objp)
+{
+    unsigned char *memp = reinterpret_cast<unsigned char*>(objp);
+    std::reverse(memp, memp + sizeof(T));
+}
+
 /*
  * DatRawReader::read_raw
  */
@@ -270,21 +279,44 @@ void DatRawReader::read_raw(const std::string raw_file_name)
     {
         // get length of file:
         is.seekg(0, is.end);
-#ifdef _WIN32
-        // HACK: to support files bigger than 2048 MB on windows
-        _prop.raw_file_size = *(__int64 *)(((char *)&(is.tellg())) + 8);
-#else
+//#ifdef _WIN32
+//        // HACK: to support files bigger than 2048 MB on windows -> fixed with VS 2017?
+//        _prop.raw_file_size = *(__int64 *)(((char *)&(is.tellg())) + 8);
+//#else
         _prop.raw_file_size = static_cast<size_t>(is.tellg());
-#endif
-        is.seekg( 0, is.beg );
-
-        std::vector<char> raw_timestep;
-        raw_timestep.resize(_prop.raw_file_size);
+//#endif
+        is.seekg(0, is.beg);
 
         // read data as a block:
-        is.read(raw_timestep.data(), static_cast<std::streamsize>(_prop.raw_file_size));
-        _raw_data.push_back(std::move(raw_timestep));
+        std::vector<char> raw_timestep;
+        raw_timestep.resize(_prop.raw_file_size);
+        // if float precision: change endianness to little endian
+        if (_prop.format == "FLOAT")
+        {
+            std::vector<float> floatdata(_prop.raw_file_size / sizeof(float));
+            is.read(reinterpret_cast<char*>(floatdata.data()),
+                    static_cast<std::streamsize>(_prop.raw_file_size));
+#pragma omp parallel for
+            for (size_t i = 0; i < floatdata.size(); ++i)
+            {
+                // swap endianness to little endian
+                endswap(&floatdata.at(i));
+                _prop.min_value = std::min(_prop.min_value, floatdata.at(i));
+                _prop.max_value = std::max(_prop.max_value, floatdata.at(i));
+                char *memp = reinterpret_cast<char*>(&floatdata.at(i));
+                for (size_t j = 0; j < 4; ++j)
+                    raw_timestep.at(i*4 + j) = (*(memp + j));
+            }
+            std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
+                      << "]" <<std::endl;
+        }
+        else    // UCHAR and USHORT should be ok
+        {
+            is.read(reinterpret_cast<char*>(raw_timestep.data()),
+                    static_cast<std::streamsize>(_prop.raw_file_size));
+        }
 
+        _raw_data.push_back(std::move(raw_timestep));
         if (!is)
             throw std::runtime_error("Error reading " + raw_file_name);
         is.close();
@@ -296,7 +328,7 @@ void DatRawReader::read_raw(const std::string raw_file_name)
 
     // if resolution was not specified, try to calculate from file size
     if (!_raw_data.empty() && std::any_of(std::begin(_prop.volume_res),
-                    std::end(_prop.volume_res), [](int i){return i == 0;}))
+                                          std::end(_prop.volume_res), [](int i){return i == 0;}))
     {
         infer_volume_resolution(_prop.raw_file_size);
     }
@@ -343,11 +375,11 @@ void DatRawReader::infer_volume_resolution(unsigned long long file_size)
     }
 
     if (_prop.format == "UCHAR")
-        file_size /= 1;
+        file_size /= sizeof(unsigned char);
     else if (_prop.format == "USHORT")
-        file_size /= 2;
+        file_size /= sizeof(unsigned short);
     else if (_prop.format == "FLOAT")
-        file_size /= 4;
+        file_size /= sizeof(float);
 
     unsigned int cuberoot = static_cast<unsigned int>(std::cbrt(file_size));
     _prop.volume_res.at(0) = cuberoot;

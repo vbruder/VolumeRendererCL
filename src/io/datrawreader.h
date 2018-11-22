@@ -25,6 +25,7 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <limits>
 
 /// <summary>
 /// The Properties struct that can hold .dat and .raw file information.
@@ -40,7 +41,10 @@ struct Properties
     std::string format = "";     // UCHAR, USHORT, FLOAT
     std::string node_file_name = "";
     std::string image_channel_order = "R";
-    unsigned int time_series = {1};
+    unsigned int time_series = {1u};
+    // data range for float normalization: TODO: add to kernel
+    float min_value = std::numeric_limits<float>::max();
+    float max_value = std::numeric_limits<float>::min();
 
     const std::string to_string() const
     {

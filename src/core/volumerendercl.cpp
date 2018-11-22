@@ -585,8 +585,8 @@ void VolumeRenderCL::generateBricks()
                                       bricksTexSize.at(2) + (lDim - bricksTexSize.at(2) % lDim));
             cl::NDRange localThreads(lDim, lDim, lDim);
 //            cl::Event ndrEvt;
-            _queueCL.enqueueNDRangeKernel(_genBricksKernel, cl::NullRange, globalThreads,
-                                          localThreads); //, NULL, &ndrEvt);
+            _queueCL.enqueueNDRangeKernel(_genBricksKernel, cl::NullRange,
+                                          globalThreads, localThreads); //, NULL, &ndrEvt);
             _queueCL.finish();
 //            cl_ulong start = 0;
 //            cl_ulong end = 0;
@@ -617,8 +617,10 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
         auto co = _dr.properties().image_channel_order;
         if (co == "R" || co == "")
             format.image_channel_order = CL_R;
-        else if (co == "RGB")
-            format.image_channel_order = CL_RGB;
+        else if (co == "RG")
+            format.image_channel_order = CL_RG;
+//        else if (co == "RGB")   // This format can only be used if channel data type = CL_UNORM_SHORT_565, CL_UNORM_SHORT_555 or CL_UNORM_INT101010.
+//            format.image_channel_order = CL_RGB;
         else if (co == "RGBA")
             format.image_channel_order = CL_RGBA;
         else if (co == "ARGB")
@@ -626,18 +628,18 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
         else if (co == "BGRA")
             format.image_channel_order = CL_BGRA;
 
-        unsigned int formatMultiplier = 1;
+        unsigned int formatMultiplier = sizeof(cl_uchar);
         if (_dr.properties().format == "UCHAR")
             format.image_channel_data_type = CL_UNORM_INT8;
         else if (_dr.properties().format == "USHORT")
         {
             format.image_channel_data_type = CL_UNORM_INT16;
-            formatMultiplier = 2;
+            formatMultiplier = sizeof(cl_ushort);
         }
         else if (_dr.properties().format == "FLOAT")
         {
             format.image_channel_data_type = CL_FLOAT;
-            formatMultiplier = 4;
+            formatMultiplier = sizeof(cl_float);
         }
         else
             throw std::invalid_argument("Unknown or invalid volume data format.");
@@ -645,8 +647,8 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
         _volumesMem.clear();
         for (const auto &v : volumeData)
         {
-            if(_dr.properties().volume_res[0]*_dr.properties().volume_res[1]*
-                     _dr.properties().volume_res[2]*formatMultiplier > v.size())
+            if(_dr.properties().volume_res[0] * _dr.properties().volume_res[1] *
+                     _dr.properties().volume_res[2] * formatMultiplier > v.size())
             {
                 _dr.clearData();
                 throw std::runtime_error("Volume size does not match size specified in dat file.");

@@ -592,6 +592,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                 {
                     density = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x
                                         : read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
+//                    density /= 12.f;  // TODO: normalization with max density
                     tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
                     if (tfColor.w > 0.1f && illumType)
                     {
@@ -617,10 +618,19 @@ __kernel void volumeRender(  __read_only image3d_t volData
                         tfColor.xyz *= fabs(dot(rayDir, gradient.xyz));
                     }
                 }
+                // RGBA: use values directly
                 else if (get_image_channel_order(volData) == CLK_RGBA)
                 {
                     tfColor = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
                                         : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
+                }
+                // RG: 2D vector, map magnitude to alpha
+                else if (get_image_channel_order(volData) == CLK_RG)
+                {
+                    tfColor = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
+                                        : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
+                    density = length(tfColor.xy);
+                    tfColor.w = read_imagef(tffData, linearSmp, density).w;
                 }
             }
             tfColor.xyz = background.xyz - tfColor.xyz;
