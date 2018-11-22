@@ -40,6 +40,7 @@
 #include <QPropertyAnimation>
 #include <qopenglfunctions_4_3_core.h>
 #include <QPainter>
+#include <QElapsedTimer>
 
 #include "src/core/volumerendercl.h"
 
@@ -55,9 +56,9 @@ public:
 
     void setVolumeData(const QString &fileName);
 
-    bool hasData();
+    bool hasData() const;
 
-    const QVector4D getVolumeResolution();
+    const QVector4D getVolumeResolution() const;
 
     void mousePressEvent(QMouseEvent *event) Q_DECL_OVERRIDE;
 
@@ -71,10 +72,10 @@ public:
 
     void keyReleaseEvent(QKeyEvent *event) Q_DECL_OVERRIDE;
 
-    void updateView(float dx = 0, float dy = 0);
+    void updateView(const float dx = 0, const float dy = 0);
 
     bool getLoadingFinished() const;
-    void setLoadingFinished(bool loadingFinished);
+    void setLoadingFinished(const bool loadingFinished);
 
     QVector3D getCamTranslation() const;
     void setCamTranslation(const QVector3D &translation);
@@ -94,12 +95,12 @@ public slots:
 
 #undef Bool
     void setTffInterpolation(const QString method);
-    void setCamOrtho(bool camOrtho);
-    void setContRendering(bool setContRendering);
-    void setIllumination(int illum);
-    void setLinearInterpolation(bool linear);
-    void setContours(bool contours);
-    void setAerial(bool aerial);
+    void setCamOrtho(const bool camOrtho);
+    void setContRendering(const bool setContRendering);
+    void setIllumination(const int illum);
+    void setLinearInterpolation(const bool linear);
+    void setContours(const bool contours);
+    void setAerial(const bool aerial);
     /**
      * @brief Set image order empty space skipping.
      * @param useEss
@@ -118,6 +119,7 @@ public slots:
     void saveFrame();
     void toggleVideoRecording();
     void toggleViewRecording();
+	void toggleInteractionLogging();
     void setTimeStep(int timestep);
     void setAmbientOcclusion(bool ao);
 
@@ -138,7 +140,7 @@ protected:
     // Qt specific QOpenGLWidget methods
     void initializeGL() Q_DECL_OVERRIDE;
     void paintGL() Q_DECL_OVERRIDE;
-    void resizeGL(int w, int h) Q_DECL_OVERRIDE;
+    void resizeGL(const int w, const int h) Q_DECL_OVERRIDE;
 
 private:
     void paintOrientationAxis(QPainter &p);
@@ -150,11 +152,28 @@ private:
      * @param useGL use OpenGL context sharing
      * @param useCPU use CPU as OpenCL device for rendering
      */
-    void initVolumeRenderer(bool useGL = true, bool useCPU = false);
-    void generateOutputTextures(int width, int height);
-    void recordViewConfig();
+    void initVolumeRenderer(bool useGL = true, const bool useCPU = false);
 
-    // -------Members--------
+	/**
+	 * @brief create the OpenGL output texture to display on the screen quad.
+	 * @param width Width of the texture in pixels.
+	 * @param height Height of the texture in pixels.
+	 */
+    void generateOutputTextures(const int width, const int height);
+
+	/**
+	 * @brief Log camera configurations rotation and zoom) to two files selected by the user.
+	 */
+    void recordViewConfig() const;
+
+	/**
+	 * @brief Log a user interaction to file.
+	 * @param str String containing the user interaction in the fowllowing format:
+	 *	          time stamp, interaction type, interaction parameters
+	 */
+	void logInteraction(const QString &str) const;
+
+    // -------Member variables--------
     //
     // OpenGL
     QOpenGLVertexArrayObject _screenQuadVao;
@@ -191,8 +210,11 @@ private:
     double _imgSamplingRate;       // image oversampling rate
     bool _useGL;
     bool _showOverlay;
-    bool _recordView;
-    QString _recordViewFile;
+    bool _logView;
+	bool _logInteraction;
+    QString _viewLogFile;
+	QString _interactionLogFile;
     bool _contRendering;
     QGradientStops _tffStops;
+	QElapsedTimer _timer;
 };

@@ -78,7 +78,8 @@ VolumeRenderWidget::VolumeRenderWidget(QWidget *parent)
     , _imgSamplingRate(1)
     , _useGL(true)
     , _showOverlay(true)
-    , _recordView(false)
+    , _logView(false)
+	, _logInteraction(false)
     , _contRendering(false)
 {
     this->setMouseTracking(true);
@@ -202,12 +203,14 @@ void VolumeRenderWidget::initializeGL()
     _screenQuadVao.release();
 
     initVolumeRenderer();
+	// FIXME: dual gpu setup
+	//initVolumeRenderer(false, false); 
 }
 
 /**
  * @brief VolumeRenderWidget::initVolumeRenderer
  */
-void VolumeRenderWidget::initVolumeRenderer(bool useGL, bool useCPU)
+void VolumeRenderWidget::initVolumeRenderer(bool useGL, const bool useCPU)
 {
     try
     {
@@ -223,7 +226,7 @@ void VolumeRenderWidget::initVolumeRenderer(bool useGL, bool useCPU)
         _useGL = false;
 		try
 		{
-			qCritical() << e.what() << "\nSDiaabling OpenGL context sharing.";
+			qCritical() << e.what() << "\nSDisabling OpenGL context sharing.";
 			_volumerender.initialize(_useGL, false);
 		}
 		catch (std::runtime_error e)
@@ -266,20 +269,67 @@ void VolumeRenderWidget::toggleVideoRecording()
  */
 void VolumeRenderWidget::toggleViewRecording()
 {
-    qInfo() << (_recordView ? "Stopped view config recording." : "Started view config recording.");
+    qInfo() << (_logView ? "Stopped view config recording." : "Started view config recording.");
 
-    _recordView = !_recordView;
+    _logView = !_logView;
 
-    if (_recordView)
+    if (_logView)
     {
         QFileDialog dialog;
-        _recordViewFile= dialog.getSaveFileName(this, tr("Save camera path"),
+        _viewLogFile= dialog.getSaveFileName(this, tr("Save camera path"),
                                                 QDir::currentPath(), tr("All files"));
-        if (_recordViewFile.isEmpty())
+        if (_viewLogFile.isEmpty())
             return;
     }
 
     updateView();
+}
+
+
+void VolumeRenderWidget::toggleInteractionLogging()
+{
+	qInfo() << (_logInteraction ? "Stopped view config recording." : "Started view config recording.");
+
+	_logInteraction = !_logInteraction;
+
+	if (_logInteraction)
+	{
+		QFileDialog dialog;
+		_interactionLogFile = dialog.getSaveFileName(this, tr("Save camera path"),
+			QDir::currentPath(), tr("All files"));
+		if (_interactionLogFile.isEmpty())
+			return;
+		_timer.restart();
+
+		// log initial configuration
+		QString s;
+		s += QString::number(_timer.elapsed());
+		s += "; tffInterpolation; ";
+		s += _tffInterpol == QEasingCurve::InOutQuad ? "quad" : "linear";
+		s += "\n";
+		// tff
+		s += QString::number(_timer.elapsed());
+		s += "; transferFunction; ";
+		const std::vector<unsigned char> tff = getRawTransferFunction(_tffStops);
+		foreach(unsigned char c, tff)
+		{
+			s += QString::number(static_cast<int>(c)) + " ";
+		}
+		s += "\n";
+		// camera
+		s += QString::number(_timer.elapsed());
+		s += "; camera; ";
+		s += QString::number(_rotQuat.toVector4D().w()) + " ";
+		s += QString::number(_rotQuat.x()) + " " + QString::number(_rotQuat.y()) + " ";
+		s += QString::number(_rotQuat.z()) + ", ";
+		s += QString::number(_translation.x()) + " " + QString::number(_translation.y()) + " ";
+		s += QString::number(_translation.z()) + "\n";
+		// timestep
+		s += QString::number(_timer.elapsed());
+		s += "; timestep; ";
+		s += QString::number(_timestep) + "\n";
+		logInteraction(s);
+	}
 }
 
 
@@ -291,6 +341,16 @@ void VolumeRenderWidget::setTimeStep(int timestep)
 {
     _timestep = timestep;
     update();
+
+	if (_logInteraction)
+	{
+		QString s;
+		s += QString::number(_timer.elapsed());
+		s += "; timestep; ";
+		s += QString::number(_timestep) + "\n";
+
+		logInteraction(s);
+	}
 }
 
 /**
@@ -416,7 +476,7 @@ void VolumeRenderWidget::paintGL()
  * @param w
  * @param h
  */
-void VolumeRenderWidget::resizeGL(int w, int h)
+void VolumeRenderWidget::resizeGL(const int w, const int h)
 {
     _screenQuadProjMX.setToIdentity();
     _screenQuadProjMX.perspective(53.14f, 1.0f, Z_NEAR, Z_FAR);
@@ -440,7 +500,7 @@ void VolumeRenderWidget::resizeGL(int w, int h)
 /**
  * @brief VolumeRenderWidget::generateOutputTextures
  */
-void VolumeRenderWidget::generateOutputTextures(int width, int height)
+void VolumeRenderWidget::generateOutputTextures(const int width, const int height)
 {
 	glDeleteTextures(1, &_outTexId);
 	glGenTextures(1, &_outTexId);
@@ -659,7 +719,7 @@ void VolumeRenderWidget::setVolumeData(const QString &fileName)
  * @brief VolumeRenderWidget::hasData
  * @return
  */
-bool VolumeRenderWidget::hasData()
+bool VolumeRenderWidget::hasData() const 
 {
     return _volumerender.hasData();
 }
@@ -669,7 +729,7 @@ bool VolumeRenderWidget::hasData()
  * @brief VolumeRenderWidget::getVolumeResolution
  * @return
  */
-const QVector4D VolumeRenderWidget::getVolumeResolution()
+const QVector4D VolumeRenderWidget::getVolumeResolution() const
 {
     if (_volumerender.hasData() == false)
         return QVector4D();
@@ -702,6 +762,17 @@ void VolumeRenderWidget::setTffInterpolation(const QString method)
         _tffInterpol = QEasingCurve::InOutQuad;
     else if (method.contains("Linear"))
         _tffInterpol = QEasingCurve::Linear;
+
+	if (_logInteraction)
+	{
+		QString s;
+		s += QString::number(_timer.elapsed());
+		s += "; tffInterpolation; ";
+		s += _tffInterpol == QEasingCurve::InOutQuad ? "quad" : "linear";
+		s += "\n";
+
+		logInteraction(s);
+	}
 }
 
 /**
@@ -766,6 +837,19 @@ void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
     }
     update();
     _tffStops = stops;
+
+	if (_logInteraction)
+	{
+		QString s;
+		s += QString::number(_timer.elapsed());
+		s += "; transferFunction; ";
+		const std::vector<unsigned char> tff = getRawTransferFunction(stops);
+		foreach (unsigned char c, tff)
+		{
+			s += QString::number(static_cast<int>(c)) + " ";
+		}
+		s += "\n";
+	}
 }
 
 std::vector<unsigned char> VolumeRenderWidget::getRawTransferFunction(QGradientStops stops) const
@@ -830,15 +914,15 @@ void VolumeRenderWidget::mouseReleaseEvent(QMouseEvent *event)
 /**
  * @brief VolumeRenderWidget::recordView
  */
-void VolumeRenderWidget::recordViewConfig()
+void VolumeRenderWidget::recordViewConfig() const
 {
-    QFile saveQuat(_recordViewFile + "_quat.txt");
-    QFile saveTrans(_recordViewFile + "_trans.txt");
+    QFile saveQuat(_viewLogFile + "_quat.txt");
+    QFile saveTrans(_viewLogFile + "_trans.txt");
     if (!saveQuat.open(QFile::WriteOnly | QFile::Append)
             || !saveTrans.open(QFile::WriteOnly | QFile::Append))
     {
         qWarning() << "Couldn't open file for saving the camera configurations: "
-                   << _recordViewFile;
+                   << _viewLogFile;
         return;
     }
 
@@ -849,6 +933,22 @@ void VolumeRenderWidget::recordViewConfig()
     transStream << _translation.x() << " " << _translation.y() << " " << _translation.z() << "; ";
 }
 
+
+/**
+ *
+ */
+void VolumeRenderWidget::logInteraction(const QString &str) const
+{
+	QFile f(_interactionLogFile);
+	if (!f.open(QFile::WriteOnly | QFile::Append))
+	{
+		qWarning() << "Couldn't open file for saving the camera configurations: "
+				   << _interactionLogFile;
+		return;
+	}
+	QTextStream fileStream(&f);
+	fileStream << str;
+}
 
 /**
  * @brief VolumeRenderWidget::resetCam
@@ -865,7 +965,7 @@ void VolumeRenderWidget::resetCam()
  * @param dx
  * @param dy
  */
-void VolumeRenderWidget::updateView(float dx, float dy)
+void VolumeRenderWidget::updateView(const float dx, const float dy)
 {
     QVector3D rotAxis = QVector3D(dy, dx, 0.0f).normalized();
     double angle = QVector2D(dx, dy).length()*500.0;
@@ -897,8 +997,22 @@ void VolumeRenderWidget::updateView(float dx, float dy)
     }
     update();
 
-    if (_recordView)
+    if (_logView)
         recordViewConfig();
+	if (_logInteraction)
+	{
+		QString s;
+		s += QString::number(_timer.elapsed());
+		s += "; camera; ";
+		s += QString::number(_rotQuat.toVector4D().w()) + " ";
+		s += QString::number(_rotQuat.x()) + " " + QString::number(_rotQuat.y()) + " ";
+		s += QString::number(_rotQuat.z()) + ", ";
+
+		s += QString::number(_translation.x()) + " " + QString::number(_translation.y()) + " ";
+		s += QString::number(_translation.z()) + "\n";
+
+		logInteraction(s);
+	}
 }
 
 
@@ -992,7 +1106,7 @@ bool VolumeRenderWidget::getLoadingFinished() const
  * @brief VolumeRenderWidget::setLoadingFinished
  * @param loadingFinished
  */
-void VolumeRenderWidget::setLoadingFinished(bool loadingFinished)
+void VolumeRenderWidget::setLoadingFinished(const bool loadingFinished)
 {
     this->setTimeStep(0);
     _loadingFinished = loadingFinished;
@@ -1003,7 +1117,7 @@ void VolumeRenderWidget::setLoadingFinished(bool loadingFinished)
  * @brief VolumeRenderWidget::setCamOrtho
  * @param camOrtho
  */
-void VolumeRenderWidget::setCamOrtho(bool camOrtho)
+void VolumeRenderWidget::setCamOrtho(const bool camOrtho)
 {
     _volumerender.setCamOrtho(camOrtho);
     _overlayProjMX.setToIdentity();
@@ -1014,7 +1128,7 @@ void VolumeRenderWidget::setCamOrtho(bool camOrtho)
     this->updateView();
 }
 
-void VolumeRenderWidget::setContRendering(bool contRendering)
+void VolumeRenderWidget::setContRendering(const bool contRendering)
 {
     _contRendering = contRendering;
     this->updateView();
@@ -1024,7 +1138,7 @@ void VolumeRenderWidget::setContRendering(bool contRendering)
  * @brief VolumeRenderWidget::setIllumination
  * @param illum
  */
-void VolumeRenderWidget::setIllumination(int illum)
+void VolumeRenderWidget::setIllumination(const int illum)
 {
     _volumerender.setIllumination(static_cast<unsigned int>(illum));
     this->updateView();
@@ -1035,7 +1149,7 @@ void VolumeRenderWidget::setIllumination(int illum)
  * @brief VolumeRenderWidget::setAmbientOcclusion
  * @param ao
  */
-void VolumeRenderWidget::setAmbientOcclusion(bool ao)
+void VolumeRenderWidget::setAmbientOcclusion(const bool ao)
 {
     _volumerender.setAmbientOcclusion(ao);
     this->updateView();
@@ -1045,7 +1159,7 @@ void VolumeRenderWidget::setAmbientOcclusion(bool ao)
  * @brief VolumeRenderWidget::setLinearInterpolation
  * @param linear
  */
-void VolumeRenderWidget::setLinearInterpolation(bool linear)
+void VolumeRenderWidget::setLinearInterpolation(const bool linear)
 {
     _volumerender.setLinearInterpolation(linear);
     this->updateView();
@@ -1055,7 +1169,7 @@ void VolumeRenderWidget::setLinearInterpolation(bool linear)
  * @brief VolumeRenderWidget::setContours
  * @param contours
  */
-void VolumeRenderWidget::setContours(bool contours)
+void VolumeRenderWidget::setContours(const bool contours)
 {
     _volumerender.setContours(contours);
     this->updateView();
@@ -1065,7 +1179,7 @@ void VolumeRenderWidget::setContours(bool contours)
  * @brief VolumeRenderWidget::setAerial
  * @param aerial
  */
-void VolumeRenderWidget::setAerial(bool aerial)
+void VolumeRenderWidget::setAerial(const bool aerial)
 {
     _volumerender.setAerial(aerial);
     this->updateView();
@@ -1075,7 +1189,7 @@ void VolumeRenderWidget::setAerial(bool aerial)
  * @brief VolumeRenderWidget::setImgEss
  * @param useEss
  */
-void VolumeRenderWidget::setImgEss(bool useEss)
+void VolumeRenderWidget::setImgEss(const bool useEss)
 {
     if (useEss)
         _volumerender.updateOutputImg(static_cast<size_t>(width() * _imgSamplingRate),
@@ -1088,7 +1202,7 @@ void VolumeRenderWidget::setImgEss(bool useEss)
  * @brief VolumeRenderWidget::setImgEss
  * @param useEss
  */
-void VolumeRenderWidget::setObjEss(bool useEss)
+void VolumeRenderWidget::setObjEss(const bool useEss)
 {
     _volumerender.setObjEss(useEss);
     this->updateView();
@@ -1098,7 +1212,7 @@ void VolumeRenderWidget::setObjEss(bool useEss)
  * @brief VolumeRenderWidget::setDrawBox
  * @param box
  */
-void VolumeRenderWidget::setDrawBox(bool box)
+void VolumeRenderWidget::setDrawBox(const bool box)
 {
     _volumerender.setShowESS(box);
     this->updateView();
