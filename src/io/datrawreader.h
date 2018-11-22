@@ -84,7 +84,7 @@ public:
     /// <param name="raw_data">Reference to a vector where the read raw data
     /// is stored in.</param>
     /// <throws>If one of the files could not be found or read.</throws
-    void read_files(const std::string dat_file_name);
+    void read_files(const std::string &dat_file_name);
 
     /// <summary>
     /// Get the read status of hte objects.
@@ -123,7 +123,7 @@ private:
     /// <summary>
     /// <param name="dat_file_name"> Name and full path of the dat text file.</param>
     /// <throws>If dat file cannot be opened or properties are missing.</throws>
-    void read_dat(const std::string dat_file_name);
+    void read_dat(const std::string &dat_file_name);
 
     /// <summary>
     /// Read scalar voxel data from a given raw file.

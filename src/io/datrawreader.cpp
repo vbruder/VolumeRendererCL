@@ -35,7 +35,7 @@
 /*
  * DatRawReader::read_files
  */
-void DatRawReader::read_files(const std::string file_name)
+void DatRawReader::read_files(const std::string &file_name)
 {
     // check file
     if (file_name.empty())
@@ -112,7 +112,7 @@ void DatRawReader::clearData()
 /*
  * DatRawReader::read_dat
  */
-void DatRawReader::read_dat(const std::string dat_file_name)
+void DatRawReader::read_dat(const std::string &dat_file_name)
 {
     std::ifstream dat_file(dat_file_name);
     std::string line;

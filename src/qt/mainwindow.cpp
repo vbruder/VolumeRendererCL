@@ -737,8 +737,8 @@ void MainWindow::dropEvent(QDropEvent *ev)
         QFileInfo finf(url.fileName());
         if (finf.suffix() == "dat")
         {
-            // extract path and remove leading '/'
-            QString fileName = url.path().remove( 0, 1 );
+            // extract path
+            QString fileName = url.path();
             qDebug() << "Loading volume data file" << fileName;
             readVolumeFile(fileName);
         }

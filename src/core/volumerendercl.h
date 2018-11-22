@@ -87,8 +87,7 @@ public:
      * @param vendor OpenCL platform vendor.
      * @param deviceName Name of the OpenCL device to use.
      */
-    void initialize(const bool useGL = false, const bool useCPU = false, 
-					const cl_vendor vendor = VENDOR_ANY,
+    void initialize(bool useGL = false, bool useCPU = false, cl_vendor vendor = VENDOR_ANY,
                     const std::string deviceName = "", const int platformId = -1);
 
     /**
@@ -108,7 +107,7 @@ public:
      * @param width The image width in pixels.
      * @param height The image height in pixels.
      */
-    void updateOutputImg(const size_t width, const size_t height, const cl_GLuint texId);
+    void updateOutputImg(const size_t width, const size_t height, cl_GLuint texId);
 
     /**
      * @brief Run the actual OpenCL volume raycasting kernel.
@@ -133,13 +132,13 @@ public:
      * @param fileName The full path to the volume data file.
      * @return number of loaded volume time steps
      */
-    size_t loadVolumeData(const std::string fileName);
+    size_t loadVolumeData(const std::string &fileName);
 
     /**
      * @brief Answers if volume data has been loaded.
      * @return true, if volume data has been loaded, false otherwise.
      */
-	bool hasData() const;
+    bool hasData() const;
 
     /**
      * @brief Return spacial and temporal resolution of loaded volume data set.
@@ -165,7 +164,7 @@ public:
      * @brief VolumeRenderCL::scaleVolume
      * @param scale
      */
-    void scaleVolume(const std::valarray<float> scale);
+    void scaleVolume(std::valarray<float> scale);
 
     /**
      * @brief buildScaledVol
@@ -181,59 +180,59 @@ public:
      * @brief Set ortographic camera kernel parameter.
      * @param setCamOrtho
      */
-    void setCamOrtho(const bool setCamOrtho);
+    void setCamOrtho(bool setCamOrtho);
     /**
      * @brief Set show illumination kernel paramter.
      * @param illum
      */
-    void setIllumination(const unsigned int illum);
+    void setIllumination(unsigned int illum);
     /**
      * @brief Set show empty space skipping kernel parameter.
      * @param boundingBox
      */
-    void setShowESS(const bool showESS);
+    void setShowESS(bool showESS);
     /**
      * @brief Set linear sampling kernel parameter.
      * @param linearSampling
      */
-    void setLinearInterpolation(const bool linearSampling);
+    void setLinearInterpolation(bool linearSampling);
     /**
      * @brief Set show contours kernel paramter.
      * @param contours
      */
-    void setContours(const bool contours);
+    void setContours(bool contours);
     /**
      * @brief Set aerial perspective kernel parameter.
      * @param aerial
      */
-    void setAerial(const bool aerial);
+    void setAerial(bool aerial);
     /**
      * @brief Set image order empty space skipping kernel parameter.
      * @param useEss
      */
-    void setImgEss(const bool useEss);
+    void setImgEss(bool useEss);
     /**
      * @brief Set object order empty space skipping kernel parameter.
      * @param useEss
      */
-    void setObjEss(const bool useEss);
+    void setObjEss(bool useEss);
     /**
      * @brief Set background color kernel parameter.
      * @param color
      */
-    void setBackground(const std::array<float, 4> color);
+    void setBackground(std::array<float, 4> color);
 
     /**
      * @brief Get the execution time of the last kernel run.
      * @return The kernel runtime in seconds.
      */
-    double getLastExecTime() const;
+    double getLastExecTime();
 
     /**
      * @brief getPlatformNames
      * @return platform names
      */
-    const std::vector<std::string> getPlatformNames() const;
+    const std::vector<std::string> getPlatformNames();
 
     /**
      * @brief getDeviceNames
@@ -248,13 +247,13 @@ public:
      * @return The name of the current OpenCL device in use.
      *         Returns an empty string if no device is currently used.
      */
-    const std::string & getCurrentDeviceName() const;
+    const std::string getCurrentDeviceName();
 
     /**
      * @brief setAmbientOcclusion
      * @param ao
      */
-    void setAmbientOcclusion(const bool ao);
+    void setAmbientOcclusion(bool ao);
 
     /**
      * @brief Generate a downsampling of the currently loaded volume file.
@@ -341,7 +340,7 @@ private:
      * @param err The OpenCL error object to be logged.
      * @throws Runtime error
      **/
-    [[ noreturn ]] void logCLerror(const cl::Error err) const;
+    [[ noreturn ]] void logCLerror(cl::Error err);
 
     // *** member variables ***
     cl::Context _contextCL;

@@ -34,7 +34,7 @@ static const size_t LOCAL_SIZE = 8;    // 8*8=64 is wavefront size or 2*warp siz
  * @param iNumber
  * @return
  */
-static unsigned int RoundPow2(const unsigned int n)
+static unsigned int RoundPow2(unsigned int n)
 {
     // next highest power of 2
     // (cf: http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2)
@@ -77,7 +77,7 @@ VolumeRenderCL::~VolumeRenderCL()
  * @brief VolumeRenderCL::logCLerror
  * @param error
  */
-void VolumeRenderCL::logCLerror(const cl::Error error) const
+void VolumeRenderCL::logCLerror(cl::Error error)
 {
     std::cerr << "Error in " << error.what() << ": "
               << getCLErrorString(error.err()) << std::endl;
@@ -89,7 +89,7 @@ void VolumeRenderCL::logCLerror(const cl::Error error) const
 /**
  * @brief VolumeRenderCL::initialize
  */
-void VolumeRenderCL::initialize(const bool useGL, const bool useCPU, const cl_vendor vendor,
+void VolumeRenderCL::initialize(bool useGL, bool useCPU, cl_vendor vendor,
                                 const std::string deviceName, const int platformId)
 {
     cl_device_type type = useCPU ? CL_DEVICE_TYPE_CPU : CL_DEVICE_TYPE_GPU;
@@ -356,7 +356,7 @@ void VolumeRenderCL::calcScaling()
  * @brief VolumeRenderCL::scaleVolume
  * @param scale
  */
-void VolumeRenderCL::scaleVolume(const std::valarray<float> scale)
+void VolumeRenderCL::scaleVolume(std::valarray<float> scale)
 {
     _modelScale *= scale;
 }
@@ -401,7 +401,7 @@ void VolumeRenderCL::updateSamplingRate(const double samplingRate)
  * @param width
  * @param height
  */
-void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, const GLuint texId)
+void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GLuint texId)
 {
     cl::ImageFormat format;
     format.image_channel_order = CL_RGBA;
@@ -674,7 +674,7 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
  * @brief VolumeRenderCL::loadVolumeData
  * @param fileName
  */
-size_t VolumeRenderCL::loadVolumeData(const std::string fileName)
+size_t VolumeRenderCL::loadVolumeData(const std::string &fileName)
 {
     this->_volLoaded = false;
     std::cout << "Loading volume data defined in " << fileName << std::endl;
@@ -794,7 +794,7 @@ void VolumeRenderCL::setTffPrefixSum(std::vector<unsigned int> &tffPrefixSum)
  * @brief VolumeRenderCL::setCamOrtho
  * @param setCamOrtho
  */
-void VolumeRenderCL::setCamOrtho(const bool setCamOrtho)
+void VolumeRenderCL::setCamOrtho(bool setCamOrtho)
 {
     if (!this->hasData())
         return;
@@ -808,7 +808,7 @@ void VolumeRenderCL::setCamOrtho(const bool setCamOrtho)
  * @brief VolumeRenderCL::setIllumination
  * @param illum
  */
-void VolumeRenderCL::setIllumination(const unsigned int illum)
+void VolumeRenderCL::setIllumination(unsigned int illum)
 {
     try {
         _raycastKernel.setArg(ILLUMINATION, static_cast<cl_uint>(illum));
@@ -820,7 +820,7 @@ void VolumeRenderCL::setIllumination(const unsigned int illum)
  * @brief VolumeRenderCL::setAmbientOcclusion
  * @param illum
  */
-void VolumeRenderCL::setAmbientOcclusion(const bool ao)
+void VolumeRenderCL::setAmbientOcclusion(bool ao)
 {
     try {
         _raycastKernel.setArg(AO, static_cast<cl_uint>(ao));
@@ -832,7 +832,7 @@ void VolumeRenderCL::setAmbientOcclusion(const bool ao)
  * @brief VolumeRenderCL::setShowESS
  * @param showESS
  */
-void VolumeRenderCL::setShowESS(const bool showESS)
+void VolumeRenderCL::setShowESS(bool showESS)
 {
     try {
         _raycastKernel.setArg(SHOW_ESS, static_cast<cl_uint>(showESS));
@@ -844,7 +844,7 @@ void VolumeRenderCL::setShowESS(const bool showESS)
  * @brief VolumeRenderCL::setLinearSampling
  * @param linearSampling
  */
-void VolumeRenderCL::setLinearInterpolation(const bool linearSampling)
+void VolumeRenderCL::setLinearInterpolation(bool linearSampling)
 {
     try {
         _raycastKernel.setArg(LINEAR, static_cast<cl_uint>(linearSampling));
@@ -855,7 +855,7 @@ void VolumeRenderCL::setLinearInterpolation(const bool linearSampling)
  * @brief VolumeRenderCL::setContours
  * @param contours
  */
-void VolumeRenderCL::setContours(const bool contours)
+void VolumeRenderCL::setContours(bool contours)
 {
     try {
         _raycastKernel.setArg(CONTOURS, static_cast<cl_uint>(contours));
@@ -866,7 +866,7 @@ void VolumeRenderCL::setContours(const bool contours)
  * @brief VolumeRenderCL::setAerial
  * @param aerial
  */
-void VolumeRenderCL::setAerial(const bool aerial)
+void VolumeRenderCL::setAerial(bool aerial)
 {
     try {
         _raycastKernel.setArg(AERIAL, static_cast<cl_uint>(aerial));
@@ -877,7 +877,7 @@ void VolumeRenderCL::setAerial(const bool aerial)
  * @brief VolumeRenderCL::setImgEss
  * @param useEss
  */
-void VolumeRenderCL::setImgEss(const bool useEss)
+void VolumeRenderCL::setImgEss(bool useEss)
 {
     try {
         _raycastKernel.setArg(IMG_ESS,  static_cast<cl_uint>(useEss));
@@ -889,7 +889,7 @@ void VolumeRenderCL::setImgEss(const bool useEss)
  * @brief VolumeRenderCL::setImgEss
  * @param useEss
  */
-void VolumeRenderCL::setObjEss(const bool useEss)
+void VolumeRenderCL::setObjEss(bool useEss)
 {
     std::string ess = useEss ? "-DESS" : "";
 #ifdef _WIN32
@@ -908,7 +908,7 @@ void VolumeRenderCL::setObjEss(const bool useEss)
  * @brief VolumeRenderCL::setBackground
  * @param color
  */
-void VolumeRenderCL::setBackground(const std::array<float, 4> color)
+void VolumeRenderCL::setBackground(std::array<float, 4> color)
 {
     cl_float3 bgColor = {{color[0], color[1], color[2], color[3]}};
     try {
@@ -921,7 +921,7 @@ void VolumeRenderCL::setBackground(const std::array<float, 4> color)
  * @brief VolumeRenderCL::getLastExecTime
  * @return
  */
-double VolumeRenderCL::getLastExecTime() const
+double VolumeRenderCL::getLastExecTime()
 {
     return _lastExecTime;
 }
@@ -931,7 +931,7 @@ double VolumeRenderCL::getLastExecTime() const
  * @brief VolumeRenderCL::getPlatformNames
  * @return
  */
-const std::vector<std::string> VolumeRenderCL::getPlatformNames() const
+const std::vector<std::string> VolumeRenderCL::getPlatformNames()
 {
     std::vector<std::string> names;
     try
@@ -954,7 +954,7 @@ const std::vector<std::string> VolumeRenderCL::getPlatformNames() const
  * @param type
  * @return
  */
-const std::vector<std::string> VolumeRenderCL::getDeviceNames(const size_t platformId,
+const std::vector<std::string> VolumeRenderCL::getDeviceNames(size_t platformId,
                                                               const std::string &type)
 {
     std::vector<std::string> names;
@@ -982,7 +982,7 @@ const std::vector<std::string> VolumeRenderCL::getDeviceNames(const size_t platf
  * @brief VolumeRenderCL::getCurrentDeviceName
  * @return
  */
-const std::string & VolumeRenderCL::getCurrentDeviceName() const
+const std::string VolumeRenderCL::getCurrentDeviceName()
 {
     return _currentDevice;
 }
