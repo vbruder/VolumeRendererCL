@@ -87,6 +87,7 @@ public:
 
     bool eventFilter(QObject *object, QEvent *event) override;
 
+    void paintHistogram(QPainter &p);
     void paintPoints();
 
     inline QRectF boundingRect() const;
@@ -127,6 +128,7 @@ signals:
 public:
     void firePointChange();
 
+    void setHistogram(const QVector<qreal> &histo);
 private:
     inline QRectF pointBoundingRect(int i) const;
     void movePoint(int i, const QPointF &newPos, bool emitChange = true);
@@ -152,6 +154,7 @@ private:
     QPen m_pointPen;
     QBrush m_pointBrush;
     QPen m_connectionPen;
+    QVector<qreal> m_histogram;
 };
 
 

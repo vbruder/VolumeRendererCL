@@ -56,6 +56,7 @@ void DatRawReader::read_files(const std::string &file_name)
             this->_prop.raw_file_names.push_back(file_name);
         }
         this->_raw_data.clear();
+        this->_histograms.clear();
         for (const auto &n : _prop.raw_file_names)
             read_raw(n);
     }
@@ -106,6 +107,7 @@ const Properties &DatRawReader::properties() const
 void DatRawReader::clearData()
 {
     _raw_data.clear();
+    _histograms.clear();
 }
 
 
@@ -245,7 +247,7 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
 }
 
 template <class T>
-void endswap(T *objp)
+inline static void endswap(T *objp)
 {
     unsigned char *memp = reinterpret_cast<unsigned char*>(objp);
     std::reverse(memp, memp + sizeof(T));
@@ -290,19 +292,29 @@ void DatRawReader::read_raw(const std::string raw_file_name)
         // read data as a block:
         std::vector<char> raw_timestep;
         raw_timestep.resize(_prop.raw_file_size);
+        std::array<double, 256> histo;
+        histo.fill(0.);
         // if float precision: change endianness to little endian
         if (_prop.format == "FLOAT")
         {
             std::vector<float> floatdata(_prop.raw_file_size / sizeof(float));
             is.read(reinterpret_cast<char*>(floatdata.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
-#pragma omp parallel for
+            #pragma omp parallel for
             for (size_t i = 0; i < floatdata.size(); ++i)
             {
                 // swap endianness to little endian
                 endswap(&floatdata.at(i));
-                _prop.min_value = std::min(_prop.min_value, floatdata.at(i));
-                _prop.max_value = std::max(_prop.max_value, floatdata.at(i));
+                float value = floatdata.at(i); // /217.762f; // FIXME: gaze data range
+                // FIXME: assuming normalized values [0,1] here...
+                size_t bin = static_cast<size_t>(round(value * 256.f));
+                bin = std::min(bin, 255ul);
+                #pragma omp atomic
+                histo.at(bin) += 1.;
+                #pragma omp atomic write
+                _prop.min_value = std::min(_prop.min_value, value);
+                #pragma omp atomic write
+                _prop.max_value = std::max(_prop.max_value, value);
                 char *memp = reinterpret_cast<char*>(&floatdata.at(i));
                 for (size_t j = 0; j < 4; ++j)
                     raw_timestep.at(i*4 + j) = (*(memp + j));
@@ -314,8 +326,21 @@ void DatRawReader::read_raw(const std::string raw_file_name)
         {
             is.read(reinterpret_cast<char*>(raw_timestep.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
+            #pragma omp parallel for
+            for (size_t i = 0; i < raw_timestep.size(); ++i)
+            {
+                float value = static_cast<float>( static_cast<unsigned char>(raw_timestep.at(i)));
+                assert(value >= 0.f && value <= 255.f);
+//                value = std::min(std::max(0.f, value), 255.f);
+                #pragma omp atomic write
+                _prop.min_value = std::min(_prop.min_value, value);
+                #pragma omp atomic write
+                _prop.max_value = std::max(_prop.max_value, value);
+                #pragma omp atomic
+                histo.at(static_cast<size_t>(value)) += 1.;
+            }
         }
-
+        _histograms.push_back(std::move(histo));
         _raw_data.push_back(std::move(raw_timestep));
         if (!is)
             throw std::runtime_error("Error reading " + raw_file_name);
@@ -386,3 +411,17 @@ void DatRawReader::infer_volume_resolution(unsigned long long file_size)
     _prop.volume_res.at(1) = cuberoot;
     _prop.volume_res.at(2) = cuberoot;
 }
+
+/**
+ * @brief DatRawReader::getHistogram
+ * @param histo
+ * @param numBins
+ * @param timestep
+ */
+const std::array<double, 256> & DatRawReader::getHistogram(size_t timestep)
+{
+    if (_histograms.size() < timestep)
+        throw std::invalid_argument("No histogram data for selected timestep available.");
+    return _histograms.at(timestep);
+}
+

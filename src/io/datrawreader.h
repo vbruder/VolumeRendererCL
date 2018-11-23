@@ -109,6 +109,13 @@ public:
     ///
     void clearData();
 
+    ///
+    /// \brief getHistogram
+    /// \param histo
+    /// \param numBins
+    /// \param timestep
+    ///
+    const std::array<double, 256> &getHistogram(size_t timestep = 0);
 private:
 
     /// <summary>
@@ -143,4 +150,9 @@ private:
     /// The raw voxel data.
     /// <summary>
     std::vector<std::vector<char> > _raw_data;
+
+    ///
+    /// \brief Histograms for each timestep
+    ///
+    std::vector<std::array<double, 256> > _histograms;
 };

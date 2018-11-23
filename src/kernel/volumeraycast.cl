@@ -592,7 +592,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                 {
                     density = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x
                                         : read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
-//                    density /= 12.f;  // TODO: normalization with max density
+//                    density /= 10.f;  // TODO: normalization with max density
                     tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
                     if (tfColor.w > 0.1f && illumType)
                     {
@@ -629,7 +629,9 @@ __kernel void volumeRender(  __read_only image3d_t volData
                 {
                     tfColor = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
                                         : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
-                    density = length(tfColor.xy);
+                    //tfColor.xyz = read_imagef(tffData, linearSmp, tfColor.x).xyz;
+                    density = length(tfColor.y / 1.f);
+                    tfColor.y = 0.f;
                     tfColor.w = read_imagef(tffData, linearSmp, density).w;
                 }
             }

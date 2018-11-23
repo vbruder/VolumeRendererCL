@@ -109,7 +109,7 @@ class TransferFunctionEditor : public QWidget
 {
     Q_OBJECT
 public:
-    explicit TransferFunctionEditor(QWidget *parent = 0);
+    explicit TransferFunctionEditor(QWidget *parent = nullptr);
 
     void setGradientStops(const QGradientStops &stops);
 
@@ -121,6 +121,7 @@ public:
 
     void setColorSelected(const QColor color);
 
+    void setHistogram(const QVector<qreal> &histo);
 public slots:
     void pointsUpdated();
     void selectedPointUpdated(const QColor color);
@@ -149,6 +150,8 @@ public:
     ~TransferFunctionWidget(){}
 
     QPointer<TransferFunctionEditor> getEditor();
+
+    void setHistogram(const QVector<qreal> &histo);
 
 public slots:
     void resetTransferFunction();

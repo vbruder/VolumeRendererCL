@@ -732,6 +732,14 @@ const std::array<unsigned int, 4> VolumeRenderCL::getResolution() const
     return _dr.properties().volume_res;
 }
 
+const std::array<double, 256> & VolumeRenderCL::getHistogram(unsigned int timestep)
+{
+    if (!_dr.has_data())
+        throw std::invalid_argument("Invalid timestep for histogram data.");
+    return _dr.getHistogram(timestep);
+}
+
+
 
 /**
  * @brief VolumeRenderCL::setTransferFunction

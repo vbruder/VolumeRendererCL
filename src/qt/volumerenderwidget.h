@@ -131,6 +131,7 @@ public slots:
     void showSelectOpenCL();
     void reloadKernels();
 
+    const std::array<double, 256> &getHistogram(unsigned int timestep = 0);
 signals:
     void fpsChanged(double);
     void frameSizeChanged(QSize);

@@ -262,7 +262,7 @@ void TransferFunctionEditor::pointsUpdated()
             return;
 
         QColor col = colors.at(i);
-        col.setAlphaF(1.f - y/h);
+        col.setAlphaF(1. - y/h);
         stops << QGradientStop(x / w, col);
     }
 
@@ -354,6 +354,16 @@ void TransferFunctionEditor::setColorSelected(const QColor color)
     emit pointsUpdated();
 }
 
+/**
+ * @brief TransferFunctionEditor::setHistogram
+ * @param histo
+ */
+void TransferFunctionEditor::setHistogram(const QVector<qreal> &histo)
+{
+    _pAlphaShade->hoverPoints()->setHistogram(histo);
+}
+
+
 
 //------------------------------------------------------
 /**
@@ -390,6 +400,14 @@ void TransferFunctionWidget::setInterpolation(QString method)
     _pEditor->setInterpolation(method);
 }
 
+/**
+ * @brief TransferFunctionWidget::setHistogram
+ * @param histo
+ */
+void TransferFunctionWidget::setHistogram(const QVector<qreal> &histo)
+{
+    _pEditor->setHistogram(histo);
+}
 
 /**
  * @brief TransferFunctionWidget::setColorSelected

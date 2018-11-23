@@ -99,6 +99,11 @@ void HoverPoints::setColorSelected(const QColor color)
 //    emit selectionChanged(color);//m_colors.at(m_currentIndex));
 }
 
+void HoverPoints::setHistogram(const QVector<qreal> &histo)
+{
+    m_histogram = histo;
+}
+
 
 bool HoverPoints::eventFilter(QObject *object, QEvent *event)
 {
@@ -358,13 +363,35 @@ bool HoverPoints::eventFilter(QObject *object, QEvent *event)
     return false;
 }
 
+void HoverPoints::paintHistogram(QPainter &p)
+{
+    if (m_histogram.isEmpty())
+    {
+        p.fillRect(0, 0, boundingRect().width(), boundingRect().height(),
+                   QColor::fromRgb(0, 0, 0, 0));
+        return;
+    }
+
+    qreal barWidth = qMax(boundingRect().width() / static_cast<qreal>(m_histogram.size()), 1.);
+
+    for (int i = 0; i < m_histogram.size(); ++i)
+    {
+        qreal h = m_histogram[i]*1. * boundingRect().height();
+        // draw level
+        p.fillRect(barWidth * i, boundingRect().height() - h, barWidth, // * (i + 1),
+                   boundingRect().height(), QColor::fromRgb(0, 0, 0, 150));
+        // clear the rest of the control
+//        p.fillRect(barWidth * i, 0, barWidth * (i + 1), boundingRect().height() - h,
+//                   QColor::fromRgb(0, 0, 0, 0));
+    }
+}
 
 void HoverPoints::paintPoints()
 {
     QPainter p;
     p.begin(m_widget);
     p.setRenderHint(QPainter::Antialiasing);
-
+    paintHistogram(p);
     if (m_connectionPen.style() != Qt::NoPen && m_connectionType != NoConnection)
     {
         p.setPen(m_connectionPen);
@@ -439,7 +466,8 @@ void HoverPoints::setPoints(const QPolygonF &points)
         m_points << bound_point(points.at(i), boundingRect(), 0);
 
     m_locks.clear();
-    if (m_points.size() > 0) {
+    if (m_points.size() > 0)
+    {
         m_locks.resize(m_points.size());
         m_colors.resize(m_points.size());
         m_colors.fill(Qt::white);

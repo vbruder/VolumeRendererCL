@@ -262,6 +262,13 @@ public:
      */
     const std::string volumeDownsampling(const size_t t, const int factor);
 
+    /**
+     * @brief getHistogram
+     * @param timestep
+     * @return
+     */
+    const std::array<double, 256> & getHistogram(unsigned int timestep = 0);
+
 private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.

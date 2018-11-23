@@ -640,6 +640,15 @@ void MainWindow::finishedLoading()
     this->setStatusText();
     ui->volumeRenderWidget->setLoadingFinished(true);
     ui->volumeRenderWidget->updateView();
+
+    std::array<double, 256> histo =
+            ui->volumeRenderWidget->getHistogram(static_cast<unsigned int>(ui->sbTimeStep->value()));
+
+    double maxVal = *std::max_element(histo.begin() + 1, histo.end());
+    QVector<qreal> qhisto;
+    for (auto &a : histo)
+        qhisto.push_back(a / maxVal);   // normalize to range [0,1]
+    ui->transferFunctionEditor->setHistogram(qhisto);
 }
 
 

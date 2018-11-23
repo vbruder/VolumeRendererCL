@@ -1233,6 +1233,14 @@ void VolumeRenderWidget::setBackgroundColor(const QColor col)
     this->updateView();
 }
 
+/**
+ * @brief VolumeRenderWidget::updateHistogram
+ */
+const std::array<double, 256> & VolumeRenderWidget::getHistogram(unsigned int timestep)
+{
+    return _volumerender.getHistogram(timestep);
+}
+
 
 /**
  * @brief VolumeRenderWidget::calcFPS
