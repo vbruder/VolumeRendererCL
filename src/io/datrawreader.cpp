@@ -305,7 +305,7 @@ void DatRawReader::read_raw(const std::string raw_file_name)
             {
                 // swap endianness to little endian
                 endswap(&floatdata.at(i));
-                float value = floatdata.at(i); // /217.762f; // FIXME: gaze data range
+                float value = floatdata.at(i) / 218.347f; // FIXME: gaze data range
                 // FIXME: assuming normalized values [0,1] here...
                 size_t bin = static_cast<size_t>(round(value * 256.f));
                 bin = std::min(bin, 255ul);

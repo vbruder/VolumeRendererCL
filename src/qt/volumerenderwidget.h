@@ -83,6 +83,7 @@ public:
     QQuaternion getCamRotation() const;
     void setCamRotation(const QQuaternion &rotQuat);
 
+    void setBBox(const QVector3D botLeft, const QVector3D topRight);
 
 public slots:
     void cleanup();
