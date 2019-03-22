@@ -35,13 +35,13 @@ constant sampler_t nearestIntSmp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLA
                                    CLK_FILTER_NEAREST;
 
 // init random number generator (hybrid tausworthy)
-uint4 initRNG()
+uint4 initRNG(uint seed)
 {
     uint4 taus;
     taus.x = 128U + (uint)(get_global_size(0));
     taus.y = 128U + (uint)(get_global_size(1));
-    taus.z = 128U + (uint)(get_global_size(0) + get_global_size(1));
-    taus.w = 128U + (uint)(get_global_size(0) * get_global_size(1));
+    taus.z = 128U + (uint)(seed);
+    taus.w = 128U + (uint)(get_global_size(0) * get_global_size(1) * seed);
     return taus;
 }
 
@@ -77,6 +77,22 @@ float hybridTaus(uint4 *taus)
                                          tausStep(taus, 1, 2, 25, 4, 4294967288U)   ^  // p2=2^30-1
                                          tausStep(taus, 2, 3, 11, 17, 4294967280U)  ^  // p3=2^28-1
                                          lcgStep(taus, 1664525U, 1013904223U));        // p4=2^32
+}
+
+// comparison of floats
+static bool approxEq(const float a, const float b)
+{
+    return fabs(a - b) < FLT_EPSILON;
+}
+static uint3 approxEq3(const float3 a, const float3 b)
+{
+    return (uint3)(approxEq(a.x, b.x), approxEq(a.y, b.y), approxEq(a.z, b.z));
+}
+
+// check if inside unit cube
+bool in_volume(const float3 pos)
+{
+    return max(fabs(pos.x), max(fabs(pos.y), fabs(pos.z))) < 1.f;
 }
 
 // intersect ray with the 'unit-box': (-1,-1,-1) to (1,1,1)
@@ -334,7 +350,7 @@ bool checkBoundingCell(int3 cell, int3 volRes, int size)
 }
 
 // Uniform Sampling of the hemisphere above the normal n
-float3 getUniformRandomSampleDirectionUpper(float3 n, uint4 *taus)
+float3 getUniformRandomSampleDirectionUpper(const float3 n, uint4 *taus)
 {
     float z = (hybridTaus(taus) * 2.f) - 1.f;
     float phi = hybridTaus(taus) * 2.f * M_PI_F;
@@ -374,8 +390,121 @@ float calcAO(float3 n, uint4 *taus, image3d_t volData, float3 pos, float stepSiz
 }
 
 
+
 /**
+ * volume tracing
+ */
+
+float get_extinction(const float max_extinction,
+                     const float3 pos,
+                     read_only image3d_t vol)
+{
+    float4 samplePos = (float4)(pos * 0.5f + 0.5f, 1.f);
+    return max_extinction * read_imagef(vol, linearSmp, samplePos).x;
+
+    /*
+    if (kernel_params.volume_type == 0) {
+        float3 pos = p + make_float3(0.5f, 0.5f, 0.5f);
+        const unsigned int steps = 3;
+        for (unsigned int i = 0; i < steps; ++i) {
+            pos *= 3.0f;
+            const int s =
+                ((int)pos.x & 1) + ((int)pos.y & 1) + ((int)pos.z & 1);
+            if (s >= 2)
+                return 0.0f;
+        }
+        return kernel_params.max_extinction;
+    } else {
+        const float r = 0.5f * (0.5f - fabsf(p.y));
+        const float a = (float)(M_PI * 8.0) * p.y;
+        const float dx = (cosf(a) * r - p.x) * 2.0f;
+        const float dy = (sinf(a) * r - p.z) * 2.0f;
+        return powf(fmaxf((1.0f - dx * dx - dy * dy), 0.0f), 8.0f) * kernel_params.max_extinction;
+    }
+    */
+}
+
+
+bool sample_interaction(uint4 *taus,
+                        float3 *ray_pos,
+                        const float3 ray_dir,
+                        const float max_extinction,
+                        read_only image3d_t vol)
+{
+    float t = 0.f;
+    float3 pos;
+    do
+    {
+        t -= log(1.f - hybridTaus(taus)) / max_extinction;
+
+        pos = *ray_pos + ray_dir * t;
+        if (!in_volume(pos))
+            return false;
+    } while (get_extinction(max_extinction, pos, vol) < hybridTaus(taus) * max_extinction);
+
+    *ray_pos = pos;
+    return true;
+}
+
+
+float3 trace_volume(
+    uint4 *taus,
+    float3 ray_pos,
+    float3 ray_dir,
+    float t0,
+    const float max_extinction,
+    read_only image3d_t vol,
+    read_only image1d_t tff)
+{
+    float w = 1.0f;
+    ray_pos += ray_dir * t0;
+    unsigned int num_interactions = 0;
+
+    while (sample_interaction(taus, &ray_pos, ray_dir, max_extinction, vol))
+    {
+        // Is the path length exeeded?
+        if (num_interactions++ >= 1024) // example: 1024
+            return (float3)(0.f);
+
+        w *= 0.8; // albedo
+        // Russian roulette absorption
+        if (w < 0.2f)
+        {
+            if (hybridTaus(taus) > w * 5.0f)
+                return (float3)(0.f);
+            w = 0.2f;
+        }
+
+        // Sample isotropic phase function.
+        const float phi = (float)(2.0 * M_PI_F) * hybridTaus(taus);
+        const float cos_theta = 1.0f - 2.0f * hybridTaus(taus);
+        const float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
+        ray_dir = (float3)(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
+    }
+
+    // Lookup environment.
+//    if (kernel_params.environment_type == 0) {
+    const float3 f = (0.5f + 0.5f * ray_dir.y) * w;
+    return (float3)(f);
+/*    }
+    else
+    {
+        const float4 texval = tex2D<float4>(
+            kernel_params.env_tex,
+            atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
+            acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+        return make_float3(texval.x * w, texval.y * w, texval.z * w);
+    }*/
+}
+
+
+
+
+
+/**
+ * ===============================
  * direct volume raycasting kernel
+ * ===============================
  */
 __kernel void volumeRender(  __read_only image3d_t volData
                            , __read_only image3d_t volBrickData
@@ -393,9 +522,14 @@ __kernel void volumeRender(  __read_only image3d_t volData
                            , const float3 modelScale
                            , const uint contours
                            , const uint aerial
+                           // img based ESS
                            , __read_only image2d_t inHitImg
                            , __write_only image2d_t outHitImg
                            , const uint imgEss
+                           , const uint seed
+                           , __read_only image2d_t inAccumulate
+                           , __write_only image2d_t outAccumulate
+                           , const uint iteration
                            )
 {
     int2 globalId = (int2)(get_global_id(0), get_global_id(1));
@@ -424,7 +558,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         }
     }
 
-    uint4 taus = initRNG();
+    uint4 taus = initRNG(seed);
     // pseudo random number [0,1] for ray offsets to avoid moire patterns
 //    float rand = trigRNG2(globalId);
     float rand = (float)(ParallelRNG2(globalId.x, globalId.y)) / (float)(UINT_MAX);
@@ -479,6 +613,30 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     }
 
+
+
+    {
+        float3 col = trace_volume(&taus, camPos, rayDir, tnear, 100.f, volData, tffData);
+        //col = read_imagef(tffData, linearSmp, col.x).xyz;
+        // Accumulation
+        if (iteration == 0)
+        {
+            write_imagef(outAccumulate, texCoords, (float4)(col, 1.f));
+        }
+        else
+        {
+            float3 prevCol = read_imagef(inAccumulate, texCoords).xyz;
+            col = prevCol + (col - prevCol) / (float3)(iteration + 1);
+            write_imagef(outAccumulate, texCoords, (float4)(col, 1.f));
+        }
+        col *= (1.f + col*0.1f) / (1.f + col);
+        col = min(pow(max(col, 0.0f), (float3)(1.0 / 2.2)), (float3)(1.0f));
+        write_imagef(outImg, texCoords, (float4)(col, 1.f));
+        return;
+    }
+
+
+
     float sampleDist = tfar - tnear;
     if (sampleDist <= 0.f)
         return;
@@ -513,8 +671,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
 
     float3 brickLen = (float3)(1.f) / convert_float3(bricksRes);
     float3 invRay = 1.f/rayDir;
-    int3 step = select(convert_int3(sign(rayDir)), (int3)(1), rayDir == (float3)(0));
-    invRay = select(invRay, (float3)(FLT_MAX), rayDir == (float3)(0));
+    int3 step = select(convert_int3(sign(rayDir)), (int3)(1), approxEq3(rayDir, (float3)(0)));
+    invRay = select(invRay, (float3)(FLT_MAX), approxEq3(rayDir, (float3)(0.f)));
 
     float3 deltaT = convert_float3(step)*(brickLen*2.f*invRay);
     float3 voxIncr = (float3)0;

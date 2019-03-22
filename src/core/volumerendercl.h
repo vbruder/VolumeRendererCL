@@ -29,6 +29,7 @@
 #include "src/io/datrawreader.h"
 
 #include <valarray>
+#include <random>
 
 /**
  * @brief The volume renderer class based on OpenCL.
@@ -60,6 +61,10 @@ public:
         , IN_HIT_IMG     // input image for image order ESS         image2d_t (UINT)
         , OUT_HIT_IMG    // output image for image order ESS        image2d_t (UINT)
         , IMG_ESS        // image order empty space skipping        cl_uint (bool)
+        , RNG_SEED
+        , IN_ACCUMULATE
+        , OUT_ACCUMULATE
+        , ITERATION
     };
 
     // mipmap down-scaling metric
@@ -365,6 +370,8 @@ private:
     cl::Image2D _outputMemNoGL;
     cl::Image2D _outputHitMem;
     cl::Image2D _inputHitMem;
+    cl::Image2D _inAccumulate;
+    cl::Image2D _outAccumulate;
 
     bool _volLoaded;
     double _lastExecTime;
@@ -372,6 +379,9 @@ private:
     bool _useGL;
     bool _useImgESS;
     std::string _currentDevice;
+    uint _iteration = 0;
+    // rng
+    std::mt19937 _generator;
 
     DatRawReader _dr;
 };

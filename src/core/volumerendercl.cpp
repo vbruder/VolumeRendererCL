@@ -25,6 +25,7 @@
 #include <functional>
 #include <algorithm>
 #include <numeric>
+
 #include <omp.h>
 
 static const size_t LOCAL_SIZE = 8;    // 8*8=64 is wavefront size or 2*warp size
@@ -62,6 +63,7 @@ VolumeRenderCL::VolumeRenderCL() :
   , _useGL(true)
   , _useImgESS(false)
 {
+    std::mt19937 _generator(42);
 }
 
 
@@ -180,6 +182,7 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
         _raycastKernel.setArg(CONTOURS, 0);             // contour lines off by default
         _raycastKernel.setArg(AERIAL, 0);               // aerial perspective off by defualt
         _raycastKernel.setArg(IMG_ESS, 0);
+        _raycastKernel.setArg(RNG_SEED, uint(_generator()));
 
         _genBricksKernel = cl::Kernel(program, "generateBricks");
         _downsamplingKernel = cl::Kernel(program, "downsampling");
@@ -209,6 +212,12 @@ void VolumeRenderCL::setMemObjectsRaycast(const size_t t)
 
     _raycastKernel.setArg(IN_HIT_IMG, _inputHitMem);
     _raycastKernel.setArg(OUT_HIT_IMG, _outputHitMem);
+
+    _raycastKernel.setArg(RNG_SEED, uint(_generator()));
+
+    _raycastKernel.setArg(IN_ACCUMULATE, _inAccumulate);
+    _raycastKernel.setArg(OUT_ACCUMULATE, _outAccumulate);
+    _raycastKernel.setArg(ITERATION, _iteration);
 }
 
 
@@ -379,6 +388,7 @@ void VolumeRenderCL::updateView(const std::array<float, 16> viewMat)
     } catch (cl::Error err) {
         logCLerror(err);
     }
+    _iteration = 0;
 }
 
 
@@ -425,6 +435,9 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
         _inputHitMem = cl::Image2D(_contextCL, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, format,
                                    width/LOCAL_SIZE + 1, height/LOCAL_SIZE + 1, 0,
                                    const_cast<unsigned int*>(initBuff.data()));
+
+        _inAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_WRITE, format, width, height);
+        _outAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_WRITE, format, width, height);
     }
     catch (cl::Error err)
     {
@@ -464,6 +477,12 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height, const s
             _outputHitMem = _inputHitMem;
             _inputHitMem = tmp;
         }
+
+        // swap accumulate buffers
+        cl::Image2D tmp = _outAccumulate;
+        _outAccumulate = _inAccumulate;
+        _inAccumulate = tmp;
+        _iteration++;
 
 #ifdef CL_QUEUE_PROFILING_ENABLE
         cl_ulong start = 0;
