@@ -55,6 +55,7 @@ static const char *pFsScreenQuadSource =
     "uniform highp sampler2D outTex;\n"
     "void main() {\n"
     "   fragColor = texture(outTex, texCoord);\n"
+    "   fragColor = pow(fragColor, vec4(1/2.2)); // gamma correction \n"
     "   fragColor.a = 1.0f;\n"
     "}\n";
 
@@ -93,6 +94,10 @@ VolumeRenderWidget::~VolumeRenderWidget()
 {
 }
 
+static void drawLineFloat(QPainter &p, float x1, float y1, float x2, float y2)
+{
+    p.drawLine(int(x1), int(y1), int(x2), int(y2));
+}
 
 /**
  * @brief VolumeRenderWidget::paintOrientationAxis
@@ -118,22 +123,22 @@ void VolumeRenderWidget::paintOrientationAxis(QPainter &p)
     int textOffset = 5;
     // x axis
     p.setPen(Qt::red);
-    p.drawLine(0, 0, x.x(), x.y());
-    p.drawLine(xArrLeft.x(), xArrLeft.y(), x.x(), x.y());
-    p.drawLine(xArrRight.x(), xArrRight.y(), x.x(), x.y());
-    p.drawText(x.x() + textOffset, x.y() + textOffset, "x");
+    p.drawLine(0, 0, int(x.x()), int(x.y()));
+    p.drawLine(int(xArrLeft.x()), int(xArrLeft.y()), int(x.x()), int(x.y()));
+    p.drawLine(int(xArrRight.x()), int(xArrRight.y()), int(x.x()), int(x.y()));
+    p.drawText(int(x.x()) + textOffset, int(x.y()) + textOffset, "x");
     // y axis
     p.setPen(Qt::green);
-    p.drawLine(0, 0, y.x(), y.y());
-    p.drawLine(yArrLeft.x(), yArrLeft.y(), y.x(), y.y());
-    p.drawLine(yArrRight.x(), yArrRight.y(), y.x(), y.y());
-    p.drawText(y.x() + textOffset, y.y() + textOffset, "y");
+    drawLineFloat(p, 0, 0, y.x(), y.y());
+    drawLineFloat(p, yArrLeft.x(), yArrLeft.y(), y.x(), y.y());
+    drawLineFloat(p, yArrRight.x(), yArrRight.y(), y.x(), y.y());
+    p.drawText(int(y.x()) + textOffset, int(y.y()) + textOffset, "y");
     // z axis
     p.setPen(Qt::blue);
-    p.drawLine(0, 0, z.x(), z.y());
-    p.drawLine(zArrLeft.x(), zArrLeft.y(), z.x(), z.y());
-    p.drawLine(zArrRight.x(), zArrRight.y(), z.x(), z.y());
-    p.drawText(z.x() + textOffset, z.y() + textOffset, "z");
+    drawLineFloat(p, 0, 0, z.x(), z.y());
+    drawLineFloat(p, zArrLeft.x(), zArrLeft.y(), z.x(), z.y());
+    drawLineFloat(p, zArrRight.x(), zArrRight.y(), z.x(), z.y());
+    p.drawText(int(z.x()) + textOffset, int(z.y()) + textOffset, "z");
 }
 
 
@@ -319,11 +324,13 @@ void VolumeRenderWidget::toggleInteractionLogging()
 		// camera
 		s += QString::number(_timer.elapsed());
 		s += "; camera; ";
-		s += QString::number(_rotQuat.toVector4D().w()) + " ";
-		s += QString::number(_rotQuat.x()) + " " + QString::number(_rotQuat.y()) + " ";
-		s += QString::number(_rotQuat.z()) + ", ";
-		s += QString::number(_translation.x()) + " " + QString::number(_translation.y()) + " ";
-		s += QString::number(_translation.z()) + "\n";
+        s += QString::number(double(_rotQuat.toVector4D().w())) + " ";
+        s += QString::number(double(_rotQuat.x())) + " "
+                                    + QString::number(double(_rotQuat.y())) + " ";
+        s += QString::number(double(_rotQuat.z())) + ", ";
+        s += QString::number(double(_translation.x())) + " "
+                                    + QString::number(double(_translation.y())) + " ";
+        s += QString::number(double(_translation.z())) + "\n";
 		// timestep
 		s += QString::number(_timer.elapsed());
 		s += "; timestep; ";
@@ -375,17 +382,18 @@ void VolumeRenderWidget::paintGL()
         try
         {
             if (_useGL)
-                _volumerender.runRaycast(floor(this->size().width() * _imgSamplingRate),
-                                         floor(this->size().height()* _imgSamplingRate), _timestep);
+                _volumerender.runRaycast(size_t(floor(this->size().width() * _imgSamplingRate)),
+                                         size_t(floor(this->size().height()* _imgSamplingRate)),
+                                         size_t(_timestep));
             else
             {
                 std::vector<float> d;
-                _volumerender.runRaycastNoGL(floor(this->size().width() * _imgSamplingRate),
-                                             floor(this->size().height()* _imgSamplingRate),
-                                             _timestep, d);
+                _volumerender.runRaycastNoGL(size_t(floor(this->size().width() * _imgSamplingRate)),
+                                             size_t(floor(this->size().height()* _imgSamplingRate)),
+                                             size_t(_timestep), d);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F,
-                             floor(this->size().width() * _imgSamplingRate),
-                             floor(this->size().height()* _imgSamplingRate),
+                             int(floor(this->size().width() * _imgSamplingRate)),
+                             int(floor(this->size().height()* _imgSamplingRate)),
                              0, GL_RGBA, GL_FLOAT,
                              d.data());
                 glGenerateMipmap(GL_TEXTURE_2D);
@@ -482,11 +490,11 @@ void VolumeRenderWidget::resizeGL(const int w, const int h)
     _screenQuadProjMX.perspective(53.14f, 1.0f, Z_NEAR, Z_FAR);
 
     _overlayProjMX.setToIdentity();
-    _overlayProjMX.perspective(53.14f, qreal(w)/qreal(h ? h : 1), Z_NEAR, Z_FAR);
+    _overlayProjMX.perspective(53.14f, float(w)/float(h ? h : 1), Z_NEAR, Z_FAR);
 
     try
     {
-        generateOutputTextures(floor(w*_imgSamplingRate), floor(h*_imgSamplingRate));
+        generateOutputTextures(int(floor(w*_imgSamplingRate)), int(floor(h*_imgSamplingRate)));
     }
     catch (std::runtime_error e)
     {
@@ -800,28 +808,23 @@ void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
 {
     const int tffSize = 256;
     const qreal granularity = 4096.0;
-    std::vector<uchar> tff(tffSize*4);
+    std::vector<uchar> tff(tffSize*4, uchar(0));
     std::vector<unsigned int> prefixSum(tffSize);
 
     QPropertyAnimation interpolator;
     interpolator.setEasingCurve(_tffInterpol);
-    interpolator.setDuration(static_cast<int>(granularity));
+    interpolator.setDuration(int(granularity));
     foreach (QGradientStop stop, stops)
-    {
         interpolator.setKeyValueAt(stop.first, stop.second);
-    }
-//    tff.at(0) = (uchar)0;
-//    tff.at(1) = (uchar)0;
-//    tff.at(2) = (uchar)0;
-//    tff.at(3) = (uchar)0;
+
 #pragma omp for
-    for (int i = 0; i < tffSize; ++i)
+    for (uint i = 0; i < tffSize; ++i)
     {
-        interpolator.setCurrentTime((i/static_cast<double>(tffSize)) * granularity);
-        tff.at(i*4 + 0) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().red()   - 3);
-        tff.at(i*4 + 1) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().green() - 3);
-        tff.at(i*4 + 2) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().blue()  - 3);
-        tff.at(i*4 + 3) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().alpha() - 3);
+        interpolator.setCurrentTime(qRound(double(i)/double(tffSize) * granularity));
+        tff.at(i*4 + 0) = uchar(qMax(0, interpolator.currentValue().value<QColor>().red()   - 3));
+        tff.at(i*4 + 1) = uchar(qMax(0, interpolator.currentValue().value<QColor>().green() - 3));
+        tff.at(i*4 + 2) = uchar(qMax(0, interpolator.currentValue().value<QColor>().blue()  - 3));
+        tff.at(i*4 + 3) = uchar(qMax(0, interpolator.currentValue().value<QColor>().alpha() - 3));
         prefixSum.at(i) = tff.at(i*4 + 3);
     }
     try
@@ -868,11 +871,11 @@ std::vector<unsigned char> VolumeRenderWidget::getRawTransferFunction(QGradientS
 
     for (size_t i = 0; i < tffSize; ++i)
     {
-        interpolator.setCurrentTime((i/static_cast<double>(tffSize)) * granularity);
-        tff.at(i*4 + 0) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().red()   - 3);
-        tff.at(i*4 + 1) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().green() - 3);
-        tff.at(i*4 + 2) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().blue()  - 3);
-        tff.at(i*4 + 3) = (uchar)qMax(0, interpolator.currentValue().value<QColor>().alpha() - 3);
+        interpolator.setCurrentTime(qRound(double(i)/double(tffSize) * granularity));
+        tff.at(i*4 + 0) = uchar(qMax(0, interpolator.currentValue().value<QColor>().red()   - 3));
+        tff.at(i*4 + 1) = uchar(qMax(0, interpolator.currentValue().value<QColor>().green() - 3));
+        tff.at(i*4 + 2) = uchar(qMax(0, interpolator.currentValue().value<QColor>().blue()  - 3));
+        tff.at(i*4 + 3) = uchar(qMax(0, interpolator.currentValue().value<QColor>().alpha() - 3));
     }
     return tff;
 }
@@ -968,7 +971,7 @@ void VolumeRenderWidget::resetCam()
 void VolumeRenderWidget::updateView(const float dx, const float dy)
 {
     QVector3D rotAxis = QVector3D(dy, dx, 0.0f).normalized();
-    double angle = QVector2D(dx, dy).length()*500.0;
+    float angle = QVector2D(dx, dy).length()*500.f;
     _rotQuat = _rotQuat * QQuaternion::fromAxisAndAngle(rotAxis, -angle);
 
     QMatrix4x4 viewMat;
@@ -1004,12 +1007,14 @@ void VolumeRenderWidget::updateView(const float dx, const float dy)
 		QString s;
 		s += QString::number(_timer.elapsed());
 		s += "; camera; ";
-		s += QString::number(_rotQuat.toVector4D().w()) + " ";
-		s += QString::number(_rotQuat.x()) + " " + QString::number(_rotQuat.y()) + " ";
-		s += QString::number(_rotQuat.z()) + ", ";
+        s += QString::number(double(_rotQuat.toVector4D().w())) + " ";
+        s += QString::number(double(_rotQuat.x())) + " "
+                                    + QString::number(double(_rotQuat.y())) + " ";
+        s += QString::number(double(_rotQuat.z())) + ", ";
 
-		s += QString::number(_translation.x()) + " " + QString::number(_translation.y()) + " ";
-		s += QString::number(_translation.z()) + "\n";
+        s += QString::number(double(_translation.x())) + " "
+                                    + QString::number(double(_translation.y())) + " ";
+        s += QString::number(double(_translation.z())) + "\n";
 
 		logInteraction(s);
 	}
@@ -1022,8 +1027,8 @@ void VolumeRenderWidget::updateView(const float dx, const float dy)
  */
 void VolumeRenderWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    float dx = (float)(event->pos().x() - _lastLocalCursorPos.x()) / width();
-    float dy = (float)(event->pos().y() - _lastLocalCursorPos.y()) / height();
+    float dx = float(event->pos().x() - _lastLocalCursorPos.x()) / width();
+    float dy = float(event->pos().y() - _lastLocalCursorPos.y()) / height();
 
     // rotate object
     if (event->buttons() & Qt::LeftButton)
@@ -1058,12 +1063,12 @@ void VolumeRenderWidget::mouseMoveEvent(QMouseEvent *event)
  */
 void VolumeRenderWidget::wheelEvent(QWheelEvent *event)
 {
-    double t = 1600.0;
+    float t = 1600.0;
     if (event->modifiers() & Qt::ShiftModifier)
-        t *= 6.0;
+        t *= 6.f;
 
     // limit translation to origin, otherwise camera setup breaks (flips)
-    _translation.setZ(qMax(0.01, _translation.z() - event->angleDelta().y() / t));
+    _translation.setZ(qMax(0.01f, _translation.z() - event->angleDelta().y() / t));
     updateView();
     event->accept();
 }
@@ -1124,7 +1129,7 @@ void VolumeRenderWidget::setCamOrtho(const bool camOrtho)
     if (camOrtho)
         _overlayProjMX.ortho(QRect(0, 0, width(), height()));
     else
-        _overlayProjMX.perspective(53.14f, qreal(width())/qreal(height() ? height() : 1), Z_NEAR, Z_FAR);
+        _overlayProjMX.perspective(53.14f, float(width())/float(height() ? height() : 1), Z_NEAR, Z_FAR);
     this->updateView();
 }
 
@@ -1325,16 +1330,26 @@ void VolumeRenderWidget::read(const QJsonObject &json)
 }
 
 /**
+ * @brief Create a QString from a float.
+ * @param f float
+ * @return QString containing the float.
+ */
+static QString qStringFloat(float f)
+{
+    return QString::number(double(f));
+}
+
+/**
  * @brief VolumeRenderWidget::write
  * @param json
  */
 void VolumeRenderWidget::write(QJsonObject &json) const
 {
-    QString sTmp = QString::number(_rotQuat.scalar()) + " " + QString::number(_rotQuat.x())
-                   + " " + QString::number(_rotQuat.y()) + " " + QString::number(_rotQuat.z());
+    QString sTmp = qStringFloat(_rotQuat.scalar()) + " " + qStringFloat(_rotQuat.x())
+                   + " " + qStringFloat(_rotQuat.y()) + " " + qStringFloat(_rotQuat.z());
     json["camRotation"] = sTmp;
-    sTmp = QString::number(_translation.x()) + " " + QString::number(_translation.y())
-            + " " + QString::number(_translation.z());
+    sTmp = qStringFloat(_translation.x()) + " " + qStringFloat(_translation.y())
+            + " " + qStringFloat(_translation.z());
     json["camTranslation"] = sTmp;
 }
 

@@ -22,6 +22,9 @@
 
 #pragma OPENCL EXTENSION cl_khr_3d_image_writes : enable
 
+#include "kernels/random.cl"
+
+
 #define ERT_THRESHOLD 0.98
 
 constant sampler_t linearSmp = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_CLAMP_TO_EDGE |
@@ -423,9 +426,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
 
     uint4 taus = initRNG();
     // pseudo random number [0,1] for ray offsets to avoid moire patterns
-    float iptr;
-    float rand = fract(sin(dot(convert_float2(globalId),
-                       (float2)(12.9898f, 78.233f))) * 43758.5453f, &iptr);
+//    float rand = trigRNG2(globalId);
+    float rand = (float)(ParallelRNG2(globalId.x, globalId.y)) / (float)(UINT_MAX);
 
     float aspectRatio = native_divide((float)get_global_size(1), (float)(get_global_size(0)));
     aspectRatio = min(aspectRatio, native_divide((float)get_global_size(0), (float)(get_global_size(1))));
@@ -511,22 +513,9 @@ __kernel void volumeRender(  __read_only image3d_t volData
 
     float3 brickLen = (float3)(1.f) / convert_float3(bricksRes);
     float3 invRay = 1.f/rayDir;
-    int3 step = convert_int3(sign(rayDir));
-    if (rayDir.x == 0.f)
-    {
-        invRay.x = FLT_MAX;
-        step.x = 1;
-    }
-    if (rayDir.y == 0.f)
-    {
-        invRay.y = FLT_MAX;
-        step.y = 1;
-    }
-    if (rayDir.z == 0.f)
-    {
-        invRay.z = FLT_MAX;
-        step.z = 1;
-    }
+    int3 step = select(convert_int3(sign(rayDir)), (int3)(1), rayDir == (float3)(0));
+    invRay = select(invRay, (float3)(FLT_MAX), rayDir == (float3)(0));
+
     float3 deltaT = convert_float3(step)*(brickLen*2.f*invRay);
     float3 voxIncr = (float3)0;
 
@@ -539,9 +528,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     float3 tv = tnear + (convert_float3(cell - isgreaterequal(rayDir, (float3)(0)))
                             * (2.f*brickLen) - rayOrigCell) * invRay;
     int3 exit = step * bricksRes.xyz;
-    if (exit.x < 0) exit.x = -1;
-    if (exit.y < 0) exit.y = -1;
-    if (exit.z < 0) exit.z = -1;
+    exit = select(exit, (int3)(-1), exit < (int3)(0));
     // length of diagonal of a brick => longest distance through brick
     float brickDia = length(brickLen)*2.f;
 
