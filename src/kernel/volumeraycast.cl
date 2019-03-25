@@ -365,27 +365,29 @@ float3 getUniformRandomSampleDirectionUpper(const float3 n, uint4 *taus)
 
 
 // Calculate ambient occlusion factor with monte carlo sampling
-float calcAO(float3 n, uint4 *taus, image3d_t volData, float3 pos, float stepSize, float r)
+float calcAO(float3 n, uint4 *taus, image3d_t volData, float3 pos, float stepSize, float r,
+             image1d_t tff)
 {
     float ao = 0.f;
-    int rays = 12;
+    int rays = 16;
     // rays
     for (int i = 0; i < rays; ++i)
     {
         float3 dir = getUniformRandomSampleDirectionUpper(n, taus);
         float sample = 0.f;
         int cnt = 0;
-
         while (cnt*stepSize < r)
         {
             ++cnt;
-            sample += read_imagef(volData, linearSmp, (float4)(pos + dir*cnt*stepSize, 1.f)).x;
+            float density = read_imagef(volData, linearSmp, (float4)(pos + dir*cnt*stepSize, 1.f)).x;
+            sample += read_imagef(tff, linearSmp, density).w;
+            if (sample > 0.98f)
+                break;
         }
         sample /= cnt;
         ao += sample;
     }
     ao /= (float)(rays);
-
     return ao;
 }
 
@@ -558,7 +560,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         }
     }
 
-    uint4 taus = initRNG(seed);
+    uint4 taus = initRNG(1); //seed);
     // pseudo random number [0,1] for ray offsets to avoid moire patterns
 //    float rand = trigRNG2(globalId);
     float rand = (float)(ParallelRNG2(globalId.x, globalId.y)) / (float)(UINT_MAX);
@@ -613,8 +615,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     }
 
-
-
+//#define PATH_TRACE
+#ifdef PATH_TRACE
     {
         float3 col = trace_volume(&taus, camPos, rayDir, tnear, 100.f, volData, tffData);
         //col = read_imagef(tffData, linearSmp, col.x).xyz;
@@ -634,7 +636,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         write_imagef(outImg, texCoords, (float4)(col, 1.f));
         return;
     }
-
+#endif
 
 
     float sampleDist = tfar - tnear;
@@ -798,8 +800,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
                 if (useAO)  // ambient occlusion only on solid surfaces
                 {
                     float3 n = -gradientCentralDiff(volData, (float4)(pos, 1.f)).xyz;
-                    float ao = calcAO(n, &taus, volData, pos, length(voxLen), length(voxLen)*5.f);
-                    result.xyz *= 1.f - 0.3f*ao;
+                    float ao = calcAO(n, &taus, volData, pos, length(voxLen)*0.9f, length(voxLen)*5.f, tffData);
+                    result.xyz *= 1.f - 0.5f*ao;
                 }
                 break;
             }
