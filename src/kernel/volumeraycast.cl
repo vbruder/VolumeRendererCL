@@ -467,12 +467,12 @@ float3 trace_volume(uint rand,
                     const float max_extinction,
                     read_only image3d_t vol,
                     read_only image1d_t tff,
-                    float4 background)
+                    float4 backgroundColor)
 {
     float w = 1.0f;
     ray_pos += ray_dir * t0;
     unsigned int num_interactions = 0;
-    float4 color = (float4)(0.7f + 0.5f * ray_dir.y);
+    float4 color = backgroundColor;
     bool isInteraction = false;
     isInteraction = sample_interaction(rand, &ray_pos, ray_dir, max_extinction, vol, tff, &color);
     if (isInteraction) // scatter event
@@ -492,29 +492,20 @@ float3 trace_volume(uint rand,
             sample_interaction(rand, &ray_pos_scatter, ray_dir_scatter, max_extinction, vol, tff, &color);
         }
         // shadow ray towards point light
-        float4 colorShadow = background;
+        float4 colorShadow = backgroundColor;
         isInteraction = sample_interaction(rand, &ray_pos, light_dir, max_extinction, vol, tff, &colorShadow);
         if (isInteraction)
             w = 0.6f;
     }
-
-    // Lookup environment.
-//    if (kernel_params.environment_type == 0) {
-//    const float3 f = (0.5f + 0.5f * ray_dir.y) * w;
     return color.xyz * w;
-/*    }
-    else
-    {
-        const float4 texval = tex2D<float4>(
-            kernel_params.env_tex,
-            atan2f(ray_dir.z, ray_dir.x) * (float)(0.5 / M_PI) + 0.5f,
-            acosf(fmaxf(fminf(ray_dir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
-        return make_float3(texval.x * w, texval.y * w, texval.z * w);
-    }*/
 }
 
-
-
+// get environtment map texture coordinates from ray direction
+float2 get_environment_coords(const float3 rayDir)
+{
+    return (float2)(atan2(rayDir.z, rayDir.x) * (float)(0.5 / M_PI) + 0.5f,
+                    acos(max(min(rayDir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
+}
 
 
 /**
@@ -532,7 +523,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                            , const uint illumType
                            , const uint showEss
                            , const uint useLinear
-                           , const float4 background
+                           , const float4 backgroundColor
                            , __read_only image1d_t tffPrefix
                            , const uint useAO
                            , const float3 modelScale
@@ -546,6 +537,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
                            , __read_only image2d_t inAccumulate
                            , __write_only image2d_t outAccumulate
                            , const uint iteration
+                           , __read_only image2d_t environment
+                           , const uint useGradient
                            )
 {
     int2 globalId = (int2)(get_global_id(0), get_global_id(1));
@@ -568,7 +561,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)+1, get_group_id(1)-1));
         if (!lastHit.x)
         {
-            write_imagef(outImg, texCoords, showEss ? (float4)(1.f) - background : background);
+            write_imagef(outImg, texCoords, showEss ? (float4)(1.f) - backgroundColor : backgroundColor);
             write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
             return;
         }
@@ -616,6 +609,12 @@ __kernel void volumeRender(  __read_only image3d_t volData
     }
     rayDir = fast_normalize(rayDir*modelScale);
 
+    // sample environment map as background color if set
+    float4 envirCol = backgroundColor;
+    envirCol *= useGradient ? (float4)(0.7f + 0.5f * rayDir.y) : 1.f;
+    if (get_image_dim(environment).x > 1)
+        envirCol = read_imagef(environment, linearSmp, get_environment_coords(rayDir));
+
     float tnear = FLT_MIN;
     float tfar = FLT_MAX;
     int hit = 0;
@@ -623,7 +622,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     hit = intersectBox(camPos, rayDir, &tnear, &tfar);
     if (!hit || tfar < 0)
     {
-        write_imagef(outImg, texCoords, (float4)(0.7f + 0.5f * rayDir.y)); // background);
+        write_imagef(outImg, texCoords, envirCol);
         if (imgEss)
             write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
         return;
@@ -636,7 +635,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
 #ifdef PATH_TRACE
     {
         uint random = ParallelRNG3(texCoords.x, texCoords.y, seed);
-        float3 col = trace_volume(random, camPos, rayDir, tnear, 300.f, volData, tffData, background);
+        float3 col = trace_volume(random, camPos, rayDir, tnear, 300.f, volData, tffData, envirCol);
         // Accumulation
         if (iteration == 0)
         {
@@ -668,7 +667,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
 
     // raycast parameters
     tnear = max(0.f, tnear);    // clamp to near plane
-    float4 result = background;
+    float4 result = backgroundColor;
     float alpha = 0.f;
     float3 pos = (float3)(0);
     float density = 0.f;
@@ -799,7 +798,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                     tfColor.w = read_imagef(tffData, linearSmp, density).w;
                 }
             }
-            tfColor.xyz = background.xyz - tfColor.xyz;
+            tfColor.xyz = backgroundColor.xyz - tfColor.xyz;
             if (aerial) // depth cue as aerial perspective
             {
                 float depthCue = 1.f - (t - tnear)/sampleDist; // [0..1]
@@ -836,7 +835,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     {
         if (checkBoundingBox(pos, voxLen, (float2)(0.f, 1.f)))
         {
-            result.xyz = fabs((float3)(1.f) - background.xyz);
+            result.xyz = fabs((float3)(1.f) - backgroundColor.xyz);
             alpha = 1.f;
         }
     }
@@ -848,7 +847,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     if (imgEss)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (any(result.xyz != background.xyz))
+        if (any(result.xyz != backgroundColor.xyz))
             ++hits;
         barrier(CLK_LOCAL_MEM_FENCE);
         if (get_local_id(0) + get_local_id(1) == 0)

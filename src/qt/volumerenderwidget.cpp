@@ -1207,6 +1207,16 @@ void VolumeRenderWidget::setAerial(const bool aerial)
 }
 
 /**
+ * @brief VolumeRenderWidget::setUseGradient
+ * @param useGradient
+ */
+void VolumeRenderWidget::setUseGradient(const bool useGradient)
+{
+    _volumerender.setUseGradient(useGradient);
+    this->updateView();
+}
+
+/**
  * @brief VolumeRenderWidget::setImgEss
  * @param useEss
  */
@@ -1377,4 +1387,17 @@ void VolumeRenderWidget::reloadKernels()
     // NOTE: this reload resets all previously defined rendering settings to default values
     initVolumeRenderer();
     resizeGL(width(), height());
+}
+
+/**
+ * @brief VolumeRenderWidget::setEnvirontmentMap
+ * @param fileName
+ */
+void VolumeRenderWidget::setEnvironmentMap(QString fileName)
+{
+    try {
+        _volumerender.createEnvironmentMap(fileName.toStdString().c_str());
+    } catch (std::runtime_error e) {
+        qWarning() << e.what();
+    }
 }

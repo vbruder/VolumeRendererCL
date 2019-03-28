@@ -21,6 +21,7 @@
  */
 
 #include "src/core/volumerendercl.h"
+#include "inc/hdr_loader.h"
 
 #include <functional>
 #include <algorithm>
@@ -183,6 +184,9 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
         _raycastKernel.setArg(AERIAL, 0);               // aerial perspective off by defualt
         _raycastKernel.setArg(IMG_ESS, 0);
         _raycastKernel.setArg(RNG_SEED, uint(_generator()));
+        const char* c = "";
+        createEnvironmentMap(c);
+        _raycastKernel.setArg(USE_GRADIENT, 1);
 
         _genBricksKernel = cl::Kernel(program, "generateBricks");
         _downsamplingKernel = cl::Kernel(program, "downsampling");
@@ -949,6 +953,16 @@ void VolumeRenderCL::setBackground(std::array<float, 4> color)
     } catch (cl::Error err) { logCLerror(err); }
 }
 
+/**
+ * @brief VolumeRenderCL::setUseGradient
+ * @param useGradient
+ */
+void VolumeRenderCL::setUseGradient(bool useGradient)
+{
+    try {
+        _raycastKernel.setArg(USE_GRADIENT, static_cast<cl_uint>(useGradient));
+    } catch (cl::Error err) { logCLerror(err); }
+}
 
 /**
  * @brief VolumeRenderCL::getLastExecTime
@@ -1019,3 +1033,39 @@ const std::string VolumeRenderCL::getCurrentDeviceName()
 {
     return _currentDevice;
 }
+
+/**
+ * @brief VolumeRenderCL::createEnvironmentMap
+ * @param file_name
+ */
+void VolumeRenderCL::createEnvironmentMap(const char *file_name)
+{
+    unsigned int width = 2048;
+    unsigned int height = 1024;
+    cl::ImageFormat format;
+    format.image_channel_order = CL_RGBA;
+    format.image_channel_data_type = CL_FLOAT;
+    if (strlen(file_name) == 0) // initialize with white
+    {
+        cl_float4 d = {{1,1,1,1}};
+        _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY, format, 1, 1, 0, &d);
+    }
+    else
+    {
+        float *pixels;
+        if (!load_hdr_float4(&pixels, &width, &height, file_name))
+            throw std::runtime_error("Error loading environment map file.");
+        _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                      format, width, height, 0, pixels);
+        std::cout << "Loaded environment map " << file_name << std::endl;
+    }
+
+    try
+    {
+        _raycastKernel.setArg(ENVIRONMENT, _environmentMap);
+    }
+    catch (cl::Error err) {
+        logCLerror(err);
+    }
+}
+

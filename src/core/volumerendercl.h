@@ -61,10 +61,12 @@ public:
         , IN_HIT_IMG     // input image for image order ESS         image2d_t (UINT)
         , OUT_HIT_IMG    // output image for image order ESS        image2d_t (UINT)
         , IMG_ESS        // image order empty space skipping        cl_uint (bool)
-        , RNG_SEED
-        , IN_ACCUMULATE
-        , OUT_ACCUMULATE
-        , ITERATION
+        , RNG_SEED       // seed to generate random numbers
+        , IN_ACCUMULATE  // in accumulated image buffer
+        , OUT_ACCUMULATE // output for last image
+        , ITERATION      // iteration sice last interaction
+        , ENVIRONMENT    // environment map
+        , USE_GRADIENT   // use gradient for brackgrount (relative to y-axis)
     };
 
     // mipmap down-scaling metric
@@ -268,12 +270,23 @@ public:
     const std::string volumeDownsampling(const size_t t, const int factor);
 
     /**
-     * @brief getHistogram
-     * @param timestep
-     * @return
+     * @brief Return the 256-bin-histogram of the loaded volume data (scalar values).
+     * @param timestep of the volume.
+     * @return  The histogram.
      */
     const std::array<double, 256> & getHistogram(unsigned int timestep = 0);
 
+    /**
+     * @brief Create an environment map and add as kernel argument.
+     * @param file_name
+     */
+    void createEnvironmentMap(const char *file_name);
+
+    /**
+     * @brief setUseGradient
+     * @param useGradient
+     */
+    void setUseGradient(bool useGradient);
 private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.
@@ -372,12 +385,13 @@ private:
     cl::Image2D _inputHitMem;
     cl::Image2D _inAccumulate;
     cl::Image2D _outAccumulate;
+    cl::Image2D _environmentMap;
 
-    bool _volLoaded;
-    double _lastExecTime;
+    bool _volLoaded = false;
+    double _lastExecTime = 0.0;
     std::valarray<float> _modelScale;
-    bool _useGL;
-    bool _useImgESS;
+    bool _useGL = true;
+    bool _useImgESS = false;
     std::string _currentDevice;
     uint _iteration = 0;
     // rng

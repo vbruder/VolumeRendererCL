@@ -85,6 +85,8 @@ public:
 
     void setBBox(const QVector3D botLeft, const QVector3D topRight);
 
+    void setEnvironmentMap(QString fileName);
+
 public slots:
     void cleanup();
     void resetCam();
@@ -123,6 +125,7 @@ public slots:
 	void toggleInteractionLogging();
     void setTimeStep(int timestep);
     void setAmbientOcclusion(bool ao);
+    void setUseGradient(const bool useGradient);
 
     void generateLowResVolume();
 

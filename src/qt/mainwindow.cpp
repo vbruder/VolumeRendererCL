@@ -87,6 +87,8 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::resetCam);
     connect(ui->actionSaveState, &QAction::triggered, this, &MainWindow::saveCamState);
     connect(ui->actionLoadState, &QAction::triggered, this, &MainWindow::loadCamState);
+    connect(ui->actionLoad_environment_map, &QAction::triggered,
+            this, &MainWindow::loadEnvironmentMap);
     connect(ui->actionShowOverlay, &QAction::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setShowOverlay);
     connect(ui->actionSelectOpenCL, &QAction::triggered,
@@ -135,6 +137,8 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::setCamOrtho);
     connect(ui->chbContRendering, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setContRendering);
+    connect(ui->chbGradient, &QCheckBox::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setUseGradient);
     // connect tff editor
     connect(ui->transferFunctionEditor->getEditor(), &TransferFunctionEditor::gradientStopsChanged,
             ui->volumeRenderWidget, &VolumeRenderWidget::updateTransferFunction);
@@ -316,6 +320,29 @@ void MainWindow::nextTimestep()
     ui->sbTimeStep->setValue(val);
 }
 
+
+/**
+ * @brief MainWindow::loadEnvironmentMap
+ */
+void MainWindow::loadEnvironmentMap()
+{
+    QFileDialog dialog;
+    QString defaultPath = _settings->value( "LastEnvironmentFile" ).toString();
+    QString pickedFile = dialog.getOpenFileName(this, tr("Load environment map file"),
+                                                defaultPath, tr("HDR files (*.hdr)"));
+    if (pickedFile.isEmpty())
+        return;
+    _settings->setValue( "LastEnvironmentFile", pickedFile );
+
+    ui->volumeRenderWidget->setEnvironmentMap(pickedFile);
+//    QFile loadFile(pickedFile);
+//    if (!loadFile.open(QIODevice::ReadOnly))
+//    {
+//        qWarning() << "Couldn't open environment map" << pickedFile;
+//        return;
+//    }
+}
+
 /**
  * @brief MainWindow::loadCamState
  */
@@ -323,7 +350,7 @@ void MainWindow::loadCamState()
 {
     QFileDialog dialog;
     QString defaultPath = _settings->value( "LastStateFile" ).toString();
-    QString pickedFile = dialog.getOpenFileName(this, tr("Save State"),
+    QString pickedFile = dialog.getOpenFileName(this, tr("Load state"),
                                                 defaultPath, tr("JSON files (*.json)"));
     if (pickedFile.isEmpty())
         return;
@@ -359,22 +386,6 @@ void MainWindow::loadCamState()
             ui->chbOrtho->setChecked(json["useOrtho"].toBool());
     // camera paramters
     ui->volumeRenderWidget->read(json);
-}
-
-/**
- * @brief MainWindow::showAboutDialog
- */
-void MainWindow::showAboutDialog()
-{
-    QMessageBox::about(this, "About Volume Raycaster",
-"<b>Volume Raycaster 2018</b><br><br>\
-Check out the \
-<a href='https://bitbucket.org/theVall/basicvolumeraycaster/overview'>Bitbucket repository</a> \
-for more information.<br><br>\
-Copyright 2017-2018 Valentin Bruder. All rights reserved. <br><br>\
-The program is provided AS IS with NO WARRANTY OF ANY KIND, \
-INCLUDING THE WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS \
-FOR A PARTICULAR PURPOSE.");
 }
 
 /**
@@ -415,6 +426,21 @@ void MainWindow::saveCamState()
     saveFile.write(saveDoc.toJson());
 }
 
+/**
+ * @brief MainWindow::showAboutDialog
+ */
+void MainWindow::showAboutDialog()
+{
+    QMessageBox::about(this, "About Volume Raycaster",
+    "<b>OpenCL Volume Renderer</b><br><br>\
+    Check out the \
+    <a href='https://bitbucket.org/theVall/basicvolumeraycaster/overview'>Bitbucket repository</a> \
+    for more information.<br><br>\
+    Copyright 2017-2019 Valentin Bruder. All rights reserved. <br><br>\
+    The program is provided AS IS with NO WARRANTY OF ANY KIND, \
+    INCLUDING THE WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS \
+    FOR A PARTICULAR PURPOSE.");
+}
 
 /**
  * @brief MainWindow::readVolumeFile
