@@ -295,9 +295,9 @@ float3 illumination(const float4 pos, float3 color, float3 toLightDir, float3 n)
 {
     float3 l = fast_normalize(toLightDir.xyz);
 
-    float3 amb = color * 0.2f;
-    float3 diff = color * max(0.f, dot(n, l)) * 0.8f;
-    float3 spec = specularBlinnPhong((float3)(1.f), 40.f, (float3)(1.f), n, l, toLightDir) * 0.2f;
+    float3 amb = color * 0.15f;
+    float3 diff = color * max(0.f, dot(n, l)) * 0.7f;
+    float3 spec = specularBlinnPhong((float3)(1.f), 40.f, (float3)(1.f), n, l, toLightDir) * 0.15f;
 
     return (amb + diff + spec);
 }
@@ -402,7 +402,7 @@ float get_extinction(const float max_extinction,
                      read_only image3d_t vol)
 {
     float4 samplePos = (float4)(pos * 0.5f + 0.5f, 1.f);
-    return max_extinction * read_imagef(vol, linearSmp, samplePos).x;
+    return read_imagef(vol, linearSmp, samplePos).x;
 }
 
 
@@ -416,7 +416,7 @@ bool sample_interaction(uint rand,
 {
     float t = 0.f;
     float3 pos;
-    float4 color = *colorOut;
+    float4 color = (float4)(1);// *colorOut;
     uint cnt = 0;
     float sample = 0.f;
     do
@@ -428,28 +428,36 @@ bool sample_interaction(uint rand,
         if (!in_volume(pos))
             return false;
         sample = get_extinction(max_extinction, pos, vol);
-        sample = read_imagef(tff, linearSmp, sample / max_extinction).w;
-        if (cnt > 512)
+        color = read_imagef(tff, linearSmp, sample);
+        if (cnt > 2048)
             return false;
-    } while (sample < mapUintFloat(rand));
+    } while (color.w < mapUintFloat(rand));
 
-    color = read_imagef(tff, linearSmp, sample);
     *colorOut = color;
     *ray_pos = pos;
     return true;
 }
 
-float3 scatter_ray(float3 ray_pos,
-                   float3 ray_dir,
-                   read_only image3d_t vol,
-                   read_only image1d_t tff,
-                   float4 color)
+float3 surface_scatter(float3 ray_pos,
+                       float3 ray_dir,
+                       read_only image3d_t vol,
+                       read_only image1d_t tff,
+                       float4 color)
 {
     float4 samplePos = (float4)(ray_pos * 0.5f + 0.5f, 1.f);
     float4 gradient = -gradientCentralDiffTff(vol, samplePos, tff);
-    return illumination(samplePos, color.xyz, -ray_dir, gradient.xyz);
-
+    return illumination(samplePos, color.xyz, -ray_dir + (float3)(0.5f, 0.5f, 0.f), gradient.xyz);
 //    float p = color.w *(1.f - exp(-gradient));
+}
+
+float3 get_dir_phase_function(uint rand)
+{
+    // Sample isotropic phase function (~ Henyey–Greenstein)
+    uint rand2 = ParallelRNG(rand);
+    const float phi = (float)(2.0 * M_PI_F) * mapUintFloat(rand2);
+    const float cos_theta = 1.0f - 2.0f * mapUintFloat(ParallelRNG(rand2));
+    const float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
+    return (float3)(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
 }
 
 float3 trace_volume(uint rand,
@@ -458,50 +466,42 @@ float3 trace_volume(uint rand,
                     float t0,
                     const float max_extinction,
                     read_only image3d_t vol,
-                    read_only image1d_t tff)
+                    read_only image1d_t tff,
+                    float4 background)
 {
     float w = 1.0f;
     ray_pos += ray_dir * t0;
     unsigned int num_interactions = 0;
-    float4 color = (float4)(1.f);
+    float4 color = (float4)(0.7f + 0.5f * ray_dir.y);
     bool isInteraction = false;
-    do
+    isInteraction = sample_interaction(rand, &ray_pos, ray_dir, max_extinction, vol, tff, &color);
+    if (isInteraction) // scatter event
     {
-        isInteraction = sample_interaction(rand, &ray_pos, ray_dir, max_extinction, vol, tff, &color);
-        if (isInteraction) // scatter event
+        float3 light_dir = -ray_dir + (float3)(0.5f, 0.5f, 0.f);
+        // surface scattering (phong based)
+        float4 samplePos = (float4)(ray_pos * 0.5f + 0.5f, 1.f);
+        float4 gradient = -gradientCentralDiffTff(vol, samplePos, tff);
+        if (length(gradient) > 0.5f)    // high gradient -> phong illumination
         {
-            color.xyz = scatter_ray(ray_pos, ray_dir, vol, tff, color);
-            break;
+            color.xyz = illumination(samplePos, color.xyz, light_dir, gradient.xyz);
         }
-        else // no scattering -> sample environemnt map
+        else    // low gradient -> second scatter
         {
-            // TODO
-            return (float3)(1.f);
+            float3 ray_dir_scatter = get_dir_phase_function(rand);
+            float3 ray_pos_scatter = ray_pos;
+            sample_interaction(rand, &ray_pos_scatter, ray_dir_scatter, max_extinction, vol, tff, &color);
         }
-
-        // Is the path length exeeded?
-        if (num_interactions++ >= 1024) // example: 1024
-            return (float3)(1.f);
-        //w *= 0.8f; // albedo
-        // Russian roulette absorption
-        if (w < 0.2f)
-        {
-            if (mapUintFloat(rand) > w * 5.0f)
-                return (float3)(1.f);
-            w = 0.2f;
-        }
-        // Sample isotropic phase function.
-        uint rand2 = ParallelRNG(rand);
-        const float phi = (float)(2.0 * M_PI_F) * mapUintFloat(rand2);
-        const float cos_theta = 1.0f - 2.0f * mapUintFloat(ParallelRNG(rand2));
-        const float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
-        ray_dir = (float3)(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
-    } while (isInteraction);
+        // shadow ray towards point light
+        float4 colorShadow = background;
+        isInteraction = sample_interaction(rand, &ray_pos, light_dir, max_extinction, vol, tff, &colorShadow);
+        if (isInteraction)
+            w = 0.6f;
+    }
 
     // Lookup environment.
 //    if (kernel_params.environment_type == 0) {
-    const float3 f = (0.5f + 0.5f * ray_dir.y) * w;
-    return color.xyz*w;
+//    const float3 f = (0.5f + 0.5f * ray_dir.y) * w;
+    return color.xyz * w;
 /*    }
     else
     {
@@ -623,7 +623,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     hit = intersectBox(camPos, rayDir, &tnear, &tfar);
     if (!hit || tfar < 0)
     {
-        write_imagef(outImg, texCoords, background);
+        write_imagef(outImg, texCoords, (float4)(0.7f + 0.5f * rayDir.y)); // background);
         if (imgEss)
             write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
         return;
@@ -636,7 +636,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
 #ifdef PATH_TRACE
     {
         uint random = ParallelRNG3(texCoords.x, texCoords.y, seed);
-        float3 col = trace_volume(random, camPos, rayDir, tnear, 80.f, volData, tffData);
+        float3 col = trace_volume(random, camPos, rayDir, tnear, 300.f, volData, tffData, background);
         // Accumulation
         if (iteration == 0)
         {
@@ -648,8 +648,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
             col = prevCol + (col - prevCol) / (float3)(iteration + 1);
             write_imagef(outAccumulate, texCoords, (float4)(col, 1.f));
         }
-        col *= (1.f + col*0.1f) / (1.f + col);
-        col = min(pow(max(col, 0.0f), (float3)(1.f / 2.2f)), (float3)(1.0f));
+        //col *= (1.f + col*0.1f) / (1.f + col);
+        //col = min(pow(max(col, 0.0f), (float3)(1.f / 2.2f)), (float3)(1.0f));
         write_imagef(outImg, texCoords, (float4)(col, 1.f));
         return;
     }
