@@ -644,7 +644,7 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
     {
         cl::ImageFormat format;
         auto co = _dr.properties().image_channel_order;
-        if (co == "R" || co == "")
+        if (co == "R" || co == "" || co == "I")
             format.image_channel_order = CL_R;
         else if (co == "RG")
             format.image_channel_order = CL_RG;

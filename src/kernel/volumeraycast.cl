@@ -416,7 +416,7 @@ bool sample_interaction(uint rand,
 {
     float t = 0.f;
     float3 pos;
-    float4 color = (float4)(1);// *colorOut;
+    float4 color = *colorOut;
     uint cnt = 0;
     float sample = 0.f;
     do
@@ -429,7 +429,7 @@ bool sample_interaction(uint rand,
             return false;
         sample = get_extinction(max_extinction, pos, vol);
         color = read_imagef(tff, linearSmp, sample);
-        if (cnt > 2048)
+        if (cnt > 512)  // TODO: variable or based on data set resolution
             return false;
     } while (color.w < mapUintFloat(rand));
 
@@ -438,6 +438,7 @@ bool sample_interaction(uint rand,
     return true;
 }
 
+// phong illumination
 float3 surface_scatter(float3 ray_pos,
                        float3 ray_dir,
                        read_only image3d_t vol,
@@ -450,9 +451,9 @@ float3 surface_scatter(float3 ray_pos,
 //    float p = color.w *(1.f - exp(-gradient));
 }
 
+// Get random direction from isotropic phase function (~ Henyey–Greenstein)
 float3 get_dir_phase_function(uint rand)
 {
-    // Sample isotropic phase function (~ Henyey–Greenstein)
     uint rand2 = ParallelRNG(rand);
     const float phi = (float)(2.0 * M_PI_F) * mapUintFloat(rand2);
     const float cos_theta = 1.0f - 2.0f * mapUintFloat(ParallelRNG(rand2));
@@ -460,6 +461,7 @@ float3 get_dir_phase_function(uint rand)
     return (float3)(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
 }
 
+// volume path tracer ("exposure renderer"-style)
 float3 trace_volume(uint rand,
                     float3 ray_pos,
                     float3 ray_dir,
@@ -469,7 +471,7 @@ float3 trace_volume(uint rand,
                     read_only image1d_t tff,
                     float4 backgroundColor)
 {
-    float w = 1.0f;
+    float w = 1.f;
     ray_pos += ray_dir * t0;
     unsigned int num_interactions = 0;
     float4 color = backgroundColor;
@@ -485,7 +487,7 @@ float3 trace_volume(uint rand,
         {
             color.xyz = illumination(samplePos, color.xyz, light_dir, gradient.xyz);
         }
-        else    // low gradient -> second scatter
+        else    // low gradient -> second scatter ray
         {
             float3 ray_dir_scatter = get_dir_phase_function(rand);
             float3 ray_pos_scatter = ray_pos;
@@ -529,7 +531,6 @@ __kernel void volumeRender(  __read_only image3d_t volData
                            , const float3 modelScale
                            , const uint contours
                            , const uint aerial
-                           // img based ESS
                            , __read_only image2d_t inHitImg
                            , __write_only image2d_t outHitImg
                            , const uint imgEss
@@ -635,7 +636,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
 #ifdef PATH_TRACE
     {
         uint random = ParallelRNG3(texCoords.x, texCoords.y, seed);
-        float3 col = trace_volume(random, camPos, rayDir, tnear, 300.f, volData, tffData, envirCol);
+        // TODO: max_extinction as parameter
+        float3 col = trace_volume(random, camPos, rayDir, tnear, 100.f, volData, tffData, envirCol);
         // Accumulation
         if (iteration == 0)
         {
