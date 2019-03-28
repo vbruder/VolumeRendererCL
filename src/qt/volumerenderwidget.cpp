@@ -52,10 +52,22 @@ static const char *pFsScreenQuadSource =
     "#version 330\n"
     "in highp vec2 texCoord;\n"
     "out highp vec4 fragColor;\n"
-    "uniform highp sampler2D outTex;\n"
+    "uniform highp int width;\n"
+    "uniform highp int height;\n"
+    "uniform highp sampler2D outTex;\n"     
     "void main() {\n"
-    "   fragColor = texture(outTex, texCoord);\n"
-    "   fragColor = pow(fragColor, vec4(1/2.2)); // gamma correction \n"
+    "   vec2 os = vec2(1.0)/vec2(width, height);"
+    "   vec3 color = 0.6  * texture(outTex, vec2(texCoord.x, texCoord.y)).xyz;\n"
+    "   color += 0.1 * texture(outTex, vec2(texCoord.x, texCoord.y+os.y)).xyz;\n"
+    "   color += 0.1 * texture(outTex, vec2(texCoord.x, texCoord.y-os.y)).xyz;\n"
+    "   color += 0.1 * texture(outTex, vec2(texCoord.x+os.x, texCoord.y)).xyz;\n"
+    "   color += 0.1 * texture(outTex, vec2(texCoord.x-os.x, texCoord.y)).xyz;\n"
+    "   //color += 0.05 * texture(outTex, vec2(texCoord.x+os.x, texCoord.y+os.y)).xyz;\n"
+    "   //color += 0.05 * texture(outTex, vec2(texCoord.x-os.x, texCoord.y-os.y)).xyz;\n"
+    "   //color += 0.05 * texture(outTex, vec2(texCoord.x+os.x, texCoord.y-os.y)).xyz;\n"
+    "   //color += 0.05 * texture(outTex, vec2(texCoord.x-os.x, texCoord.y+os.y)).xyz;\n"
+    "   fragColor.xyz = color;\n"
+    "   //fragColor = pow(fragColor, vec4(1/2.2)); // gamma correction \n"
     "   fragColor.a = 1.0f;\n"
     "}\n";
 
@@ -425,10 +437,12 @@ void VolumeRenderWidget::paintGL()
         // render screen quad
         //
         _spScreenQuad.bind();
-        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation( "projMatrix" ),
-                                          _screenQuadProjMX );
-        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation( "mvMatrix" ),
-                                          _viewMX * _modelMX );
+        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("projMatrix"),
+                                       _screenQuadProjMX );
+        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("mvMatrix"),
+                                       _viewMX * _modelMX );
+        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("width"), width());
+        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("height"), height());
 
         _spScreenQuad.setUniformValue(_spScreenQuad.uniformLocation("outTex"), GL_TEXTURE0);
         glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
@@ -501,6 +515,8 @@ void VolumeRenderWidget::resizeGL(const int w, const int h)
         qCritical() << "An error occured while generating output texture." << e.what();
     }
 
+    _spScreenQuad.setUniformValue(_spScreenQuad.uniformLocation("width"), width());
+    _spScreenQuad.setUniformValue(_spScreenQuad.uniformLocation("height"), height());
     emit frameSizeChanged(this->size());
 }
 

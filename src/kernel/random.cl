@@ -40,3 +40,8 @@ float  map256(float v)
 { 
 	return ((127.5f * v) + 127.5f); 
 }
+
+float mapUintFloat(uint v)
+{
+    return (float)(v) / (float)(UINT_MAX);
+}

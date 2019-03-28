@@ -403,91 +403,105 @@ float get_extinction(const float max_extinction,
 {
     float4 samplePos = (float4)(pos * 0.5f + 0.5f, 1.f);
     return max_extinction * read_imagef(vol, linearSmp, samplePos).x;
-
-    /*
-    if (kernel_params.volume_type == 0) {
-        float3 pos = p + make_float3(0.5f, 0.5f, 0.5f);
-        const unsigned int steps = 3;
-        for (unsigned int i = 0; i < steps; ++i) {
-            pos *= 3.0f;
-            const int s =
-                ((int)pos.x & 1) + ((int)pos.y & 1) + ((int)pos.z & 1);
-            if (s >= 2)
-                return 0.0f;
-        }
-        return kernel_params.max_extinction;
-    } else {
-        const float r = 0.5f * (0.5f - fabsf(p.y));
-        const float a = (float)(M_PI * 8.0) * p.y;
-        const float dx = (cosf(a) * r - p.x) * 2.0f;
-        const float dy = (sinf(a) * r - p.z) * 2.0f;
-        return powf(fmaxf((1.0f - dx * dx - dy * dy), 0.0f), 8.0f) * kernel_params.max_extinction;
-    }
-    */
 }
 
 
-bool sample_interaction(uint4 *taus,
+bool sample_interaction(uint rand,
                         float3 *ray_pos,
                         const float3 ray_dir,
                         const float max_extinction,
-                        read_only image3d_t vol)
+                        read_only image3d_t vol,
+                        read_only image1d_t tff,
+                        float4 *colorOut)
 {
     float t = 0.f;
     float3 pos;
+    float4 color = *colorOut;
+    uint cnt = 0;
+    float sample = 0.f;
     do
     {
-        t -= log(1.f - hybridTaus(taus)) / max_extinction;
-
+        ++cnt;
+        uint rand2 = ParallelRNG(rand);
+        t -= log(1.f - mapUintFloat(rand2)) / max_extinction;
         pos = *ray_pos + ray_dir * t;
         if (!in_volume(pos))
             return false;
-    } while (get_extinction(max_extinction, pos, vol) < hybridTaus(taus) * max_extinction);
+        sample = get_extinction(max_extinction, pos, vol);
+        sample = read_imagef(tff, linearSmp, sample / max_extinction).w;
+        if (cnt > 512)
+            return false;
+    } while (sample < mapUintFloat(rand));
 
+    color = read_imagef(tff, linearSmp, sample);
+    *colorOut = color;
     *ray_pos = pos;
     return true;
 }
 
+float3 scatter_ray(float3 ray_pos,
+                   float3 ray_dir,
+                   read_only image3d_t vol,
+                   read_only image1d_t tff,
+                   float4 color)
+{
+    float4 samplePos = (float4)(ray_pos * 0.5f + 0.5f, 1.f);
+    float4 gradient = -gradientCentralDiffTff(vol, samplePos, tff);
+    return illumination(samplePos, color.xyz, -ray_dir, gradient.xyz);
 
-float3 trace_volume(
-    uint4 *taus,
-    float3 ray_pos,
-    float3 ray_dir,
-    float t0,
-    const float max_extinction,
-    read_only image3d_t vol,
-    read_only image1d_t tff)
+//    float p = color.w *(1.f - exp(-gradient));
+}
+
+float3 trace_volume(uint rand,
+                    float3 ray_pos,
+                    float3 ray_dir,
+                    float t0,
+                    const float max_extinction,
+                    read_only image3d_t vol,
+                    read_only image1d_t tff)
 {
     float w = 1.0f;
     ray_pos += ray_dir * t0;
     unsigned int num_interactions = 0;
-
-    while (sample_interaction(taus, &ray_pos, ray_dir, max_extinction, vol))
+    float4 color = (float4)(1.f);
+    bool isInteraction = false;
+    do
     {
+        isInteraction = sample_interaction(rand, &ray_pos, ray_dir, max_extinction, vol, tff, &color);
+        if (isInteraction) // scatter event
+        {
+            color.xyz = scatter_ray(ray_pos, ray_dir, vol, tff, color);
+            break;
+        }
+        else // no scattering -> sample environemnt map
+        {
+            // TODO
+            return (float3)(1.f);
+        }
+
         // Is the path length exeeded?
         if (num_interactions++ >= 1024) // example: 1024
-            return (float3)(0.f);
-
-        w *= 0.8; // albedo
+            return (float3)(1.f);
+        //w *= 0.8f; // albedo
         // Russian roulette absorption
         if (w < 0.2f)
         {
-            if (hybridTaus(taus) > w * 5.0f)
-                return (float3)(0.f);
+            if (mapUintFloat(rand) > w * 5.0f)
+                return (float3)(1.f);
             w = 0.2f;
         }
-
         // Sample isotropic phase function.
-        const float phi = (float)(2.0 * M_PI_F) * hybridTaus(taus);
-        const float cos_theta = 1.0f - 2.0f * hybridTaus(taus);
+        uint rand2 = ParallelRNG(rand);
+        const float phi = (float)(2.0 * M_PI_F) * mapUintFloat(rand2);
+        const float cos_theta = 1.0f - 2.0f * mapUintFloat(ParallelRNG(rand2));
         const float sin_theta = sqrt(1.0f - cos_theta * cos_theta);
         ray_dir = (float3)(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
-    }
+    } while (isInteraction);
 
     // Lookup environment.
 //    if (kernel_params.environment_type == 0) {
     const float3 f = (0.5f + 0.5f * ray_dir.y) * w;
-    return (float3)(f);
+    return color.xyz*w;
 /*    }
     else
     {
@@ -560,7 +574,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         }
     }
 
-    uint4 taus = initRNG(1); //seed);
+    uint4 taus = initRNG(1);//seed);
     // pseudo random number [0,1] for ray offsets to avoid moire patterns
 //    float rand = trigRNG2(globalId);
     float rand = (float)(ParallelRNG2(globalId.x, globalId.y)) / (float)(UINT_MAX);
@@ -615,11 +629,14 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     }
 
-//#define PATH_TRACE
+    //write_imagef(outImg, texCoords, (float4)(random, 0, 0, 1.f));
+    //return;
+
+#define PATH_TRACE
 #ifdef PATH_TRACE
     {
-        float3 col = trace_volume(&taus, camPos, rayDir, tnear, 100.f, volData, tffData);
-        //col = read_imagef(tffData, linearSmp, col.x).xyz;
+        uint random = ParallelRNG3(texCoords.x, texCoords.y, seed);
+        float3 col = trace_volume(random, camPos, rayDir, tnear, 80.f, volData, tffData);
         // Accumulation
         if (iteration == 0)
         {
@@ -627,12 +644,12 @@ __kernel void volumeRender(  __read_only image3d_t volData
         }
         else
         {
-            float3 prevCol = read_imagef(inAccumulate, texCoords).xyz;
+            float3 prevCol = read_imagef(inAccumulate, nearestIntSmp, texCoords).xyz;
             col = prevCol + (col - prevCol) / (float3)(iteration + 1);
             write_imagef(outAccumulate, texCoords, (float4)(col, 1.f));
         }
         col *= (1.f + col*0.1f) / (1.f + col);
-        col = min(pow(max(col, 0.0f), (float3)(1.0 / 2.2)), (float3)(1.0f));
+        col = min(pow(max(col, 0.0f), (float3)(1.f / 2.2f)), (float3)(1.0f));
         write_imagef(outImg, texCoords, (float4)(col, 1.f));
         return;
     }

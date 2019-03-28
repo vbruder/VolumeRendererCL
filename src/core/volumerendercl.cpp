@@ -415,7 +415,7 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
 {
     cl::ImageFormat format;
     format.image_channel_order = CL_RGBA;
-    format.image_channel_data_type = CL_FLOAT;
+    format.image_channel_data_type = CL_UNORM_INT8;
     try
     {
         if (_useGL)
@@ -436,8 +436,10 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
                                    width/LOCAL_SIZE + 1, height/LOCAL_SIZE + 1, 0,
                                    const_cast<unsigned int*>(initBuff.data()));
 
-        _inAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_WRITE, format, width, height);
-        _outAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_WRITE, format, width, height);
+        format.image_channel_order = CL_RGBA;
+        format.image_channel_data_type = CL_UNORM_INT8;
+        _inAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_ONLY , format, width, height);
+        _outAccumulate = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY, format, width, height);
     }
     catch (cl::Error err)
     {
@@ -467,8 +469,6 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height, const s
         _queueCL.enqueueAcquireGLObjects(&memObj);
         _queueCL.enqueueNDRangeKernel(
                     _raycastKernel, cl::NullRange, globalThreads, localThreads, nullptr, &ndrEvt);
-        _queueCL.enqueueReleaseGLObjects(&memObj);
-        _queueCL.finish();    // global sync
 
         if (_useImgESS)
         {
@@ -479,10 +479,16 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height, const s
         }
 
         // swap accumulate buffers
-        cl::Image2D tmp = _outAccumulate;
-        _outAccumulate = _inAccumulate;
-        _inAccumulate = tmp;
+        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0}, {width, height, 1});
+//        cl::Image2D tmp = _outAccumulate;
+//        _outAccumulate = _inAccumulate;
+//        _inAccumulate = tmp;
+//        _raycastKernel.setArg(IN_ACCUMULATE,  (_iteration % 2) ? _outAccumulate : _inAccumulate);
+//        _raycastKernel.setArg(OUT_ACCUMULATE, (_iteration % 2) ? _inAccumulate : _outAccumulate);
         _iteration++;
+
+        _queueCL.enqueueReleaseGLObjects(&memObj);
+        _queueCL.finish();    // global sync
 
 #ifdef CL_QUEUE_PROFILING_ENABLE
         cl_ulong start = 0;
