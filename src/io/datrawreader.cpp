@@ -26,6 +26,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <array>
 #include <algorithm>
 #include <iterator>
 #include <cassert>
@@ -292,55 +293,65 @@ void DatRawReader::read_raw(const std::string raw_file_name)
         // read data as a block:
         std::vector<char> raw_timestep;
         raw_timestep.resize(_prop.raw_file_size);
-        std::array<double, 256> histo;
-        histo.fill(0.);
+
+        size_t histo[256] = {0};
+        float minimum = std::numeric_limits<float>::max();
+        float maximum = std::numeric_limits<float>::min();
+
         // if float precision: change endianness to little endian
         if (_prop.format == "FLOAT")
         {
             std::vector<float> floatdata(_prop.raw_file_size / sizeof(float));
             is.read(reinterpret_cast<char*>(floatdata.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
-            #pragma omp parallel for
+            #pragma omp parallel for reduction(+:histo)
             for (size_t i = 0; i < floatdata.size(); ++i)
             {
                 // swap endianness to little endian
                 endswap(&floatdata.at(i));
-                float value = floatdata.at(i) / 218.347f; // FIXME: gaze data range
+                float value = floatdata.at(i);
                 // FIXME: assuming normalized values [0,1] here...
                 size_t bin = static_cast<size_t>(round(value * 256.f));
                 bin = std::min(bin, 255ul);
-                #pragma omp atomic
-                histo.at(bin) += 1.;
-                #pragma omp atomic write
-                _prop.min_value = std::min(_prop.min_value, value);
-                #pragma omp atomic write
-                _prop.max_value = std::max(_prop.max_value, value);
+                histo[bin]++;
                 char *memp = reinterpret_cast<char*>(&floatdata.at(i));
                 for (size_t j = 0; j < 4; ++j)
                     raw_timestep.at(i*4 + j) = (*(memp + j));
             }
-            std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
-                      << "]" <<std::endl;
+            #pragma omp parallel for reduction(min:minimum)
+            for (size_t i = 0; i < floatdata.size(); ++i)
+                minimum = std::min(minimum, floatdata.at(i));
+            _prop.min_value = minimum;
+            #pragma omp parallel for reduction(max:maximum)
+            for (size_t i = 0; i < floatdata.size(); ++i)
+                maximum = std::max(maximum, floatdata.at(i));
+            _prop.max_value = maximum;
         }
         else    // UCHAR and USHORT should be ok
         {
             is.read(reinterpret_cast<char*>(raw_timestep.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
-            #pragma omp parallel for
+            #pragma omp parallel for reduction(+:histo)
             for (size_t i = 0; i < raw_timestep.size(); ++i)
             {
-                float value = static_cast<float>( static_cast<unsigned char>(raw_timestep.at(i)));
-                assert(value >= 0.f && value <= 255.f);
-//                value = std::min(std::max(0.f, value), 255.f);
-                #pragma omp atomic write
-                _prop.min_value = std::min(_prop.min_value, value);
-                #pragma omp atomic write
-                _prop.max_value = std::max(_prop.max_value, value);
-                #pragma omp atomic
-                histo.at(static_cast<size_t>(value)) += 1.;
+                float value = float(static_cast<unsigned char>(raw_timestep.at(i)));
+//                assert(value >= 0.f && value <= 255.f);
+                histo[size_t(value)]++;
             }
+            #pragma omp parallel for reduction(min:minimum)
+            for (size_t i = 0; i < raw_timestep.size(); ++i)
+                minimum = std::min(minimum, float(static_cast<unsigned char>(raw_timestep.at(i))));
+            _prop.min_value = minimum;
+            #pragma omp parallel for reduction(max:maximum)
+            for (size_t i = 0; i < raw_timestep.size(); ++i)
+                maximum = std::max(maximum, float(static_cast<unsigned char>(raw_timestep.at(i))));
+            _prop.max_value = maximum;
         }
-        _histograms.push_back(std::move(histo));
+        std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
+                  << "]" << std::endl;
+        std::array<double, 256> a;
+        std::copy(std::begin(histo), std::end(histo), std::begin(a));
+        _histograms.push_back(std::move(a));
         _raw_data.push_back(std::move(raw_timestep));
         if (!is)
             throw std::runtime_error("Error reading " + raw_file_name);

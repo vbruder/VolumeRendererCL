@@ -102,6 +102,7 @@ void HoverPoints::setColorSelected(const QColor color)
 void HoverPoints::setHistogram(const QVector<qreal> &histo)
 {
     m_histogram = histo;
+    this->firePointChange();
 }
 
 
