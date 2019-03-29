@@ -139,7 +139,7 @@ private:
     /// that it is not empty.</remarks>
     /// <param name="raw_file_name"> Name of the raw data file without the path.</param>
     /// <throws>If the given file could not be opened or read.</throws>
-    void read_raw(const std::string raw_file_name);
+    void read_raw(const std::string &raw_file_name);
 
     /// <summary>
     /// Properties of the volume data set.

@@ -34,6 +34,8 @@
 #include <QMessageBox>
 #include <QFileDialog>
 
+#include <algorithm>
+
 const static double Z_NEAR = 1.0;
 const static double Z_FAR = 500.0;
 
@@ -843,6 +845,7 @@ void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
         tff.at(i*4 + 3) = uchar(qMax(0, interpolator.currentValue().value<QColor>().alpha() - 3));
         prefixSum.at(i) = tff.at(i*4 + 3);
     }
+
     try
     {
         _volumerender.setTransferFunction(tff);

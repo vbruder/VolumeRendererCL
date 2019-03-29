@@ -262,8 +262,9 @@ void MainWindow::readSettings()
 void MainWindow::setVolumeData(const QString &fileName)
 {
     ui->volumeRenderWidget->setVolumeData(fileName);
-    ui->volumeRenderWidget->updateTransferFunction(
-                ui->transferFunctionEditor->getEditor()->getGradientStops());
+    // TEST: we probably don't need this tff update here
+//    ui->volumeRenderWidget->updateTransferFunction(
+//                ui->transferFunctionEditor->getEditor()->getGradientStops());
     ui->volumeRenderWidget->updateView();
 }
 

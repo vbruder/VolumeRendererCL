@@ -230,7 +230,7 @@ void VolumeRenderCL::setMemObjectsRaycast(const size_t t)
  */
 void VolumeRenderCL::setMemObjectsBrickGen(const size_t t)
 {
-    if (_volumesMem.size() <= static_cast<size_t>(t) || _bricksMem.size() <= static_cast<size_t>(t))
+    if (_volumesMem.size() <= size_t(t) || _bricksMem.size() <= size_t(t))
         throw std::runtime_error("Error loading timeseries data: size mismatch.");
     _genBricksKernel.setArg(VOLUME, _volumesMem.at(t));
     _genBricksKernel.setArg(BRICKS, _bricksMem.at(t));
@@ -570,20 +570,17 @@ void VolumeRenderCL::generateBricks()
     try
     {
         // calculate brick size
-        const unsigned int numBricks = 64u;
-        std::array<unsigned int, 3> brickRes = {1u, 1u, 1u};
-        brickRes.at(0) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(0)/numBricks));
-        brickRes.at(1) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(1)/numBricks));
-        brickRes.at(2) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(2)/numBricks));
-//std::cout << brickRes.at(2) << std::endl;
-        std::array<unsigned int, 3> bricksTexSize = {1u, 1u, 1u};
-        bricksTexSize.at(0) = static_cast<unsigned int>(ceil(_dr.properties().volume_res.at(0) /
-                                                             static_cast<double>(brickRes.at(0))));
-        bricksTexSize.at(1) = static_cast<unsigned int>(ceil(_dr.properties().volume_res.at(1) /
-                                                             static_cast<double>(brickRes.at(1))));
-        bricksTexSize.at(2) = static_cast<unsigned int>(ceil(_dr.properties().volume_res.at(2) /
-                                                             static_cast<double>(brickRes.at(2))));
-//std::cout << bricksTexSize.at(2) << std::endl;
+        const uint numBricks = 64u;
+        std::array<uint, 3> brickRes = {1u, 1u, 1u};
+        brickRes.at(0) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(0) / numBricks));
+        brickRes.at(1) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(1) / numBricks));
+        brickRes.at(2) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(2) / numBricks));
+
+        std::array<uint, 3> bricksTexSize = {1u, 1u, 1u};
+        bricksTexSize.at(0) = uint(ceil(_dr.properties().volume_res.at(0) / double(brickRes.at(0))));
+        bricksTexSize.at(1) = uint(ceil(_dr.properties().volume_res.at(1) / double(brickRes.at(1))));
+        bricksTexSize.at(2) = uint(ceil(_dr.properties().volume_res.at(2) / double(brickRes.at(2))));
+
         // set memory object
         cl::ImageFormat format;
         format.image_channel_order = CL_RG;  // NOTE: CL_RG for min+max
@@ -597,7 +594,8 @@ void VolumeRenderCL::generateBricks()
         else
             throw std::invalid_argument("Unknown or invalid volume data format.");
 
-        _bricksMem.clear();
+        if (!_bricksMem.empty())
+            _bricksMem.clear();
         for (size_t i = 0; i < _dr.properties().raw_file_names.size(); ++i)
         {
             _bricksMem.push_back(cl::Image3D(_contextCL,
@@ -615,7 +613,7 @@ void VolumeRenderCL::generateBricks()
             cl::NDRange localThreads(lDim, lDim, lDim);
 //            cl::Event ndrEvt;
             _queueCL.enqueueNDRangeKernel(_genBricksKernel, cl::NullRange,
-                                          globalThreads, localThreads); //, NULL, &ndrEvt);
+                                          globalThreads, localThreads); //, nullptr, &ndrEvt);
             _queueCL.finish();
 //            cl_ulong start = 0;
 //            cl_ulong end = 0;
@@ -659,7 +657,9 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
 
         unsigned int formatMultiplier = sizeof(cl_uchar);
         if (_dr.properties().format == "UCHAR")
+        {
             format.image_channel_data_type = CL_UNORM_INT8;
+        }
         else if (_dr.properties().format == "USHORT")
         {
             format.image_channel_data_type = CL_UNORM_INT16;
@@ -671,9 +671,13 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
             formatMultiplier = sizeof(cl_float);
         }
         else
+        {
             throw std::invalid_argument("Unknown or invalid volume data format.");
+        }
 
-        _volumesMem.clear();
+        if (!_volumesMem.empty())
+            _volumesMem.clear();
+
         for (const auto &v : volumeData)
         {
             if(_dr.properties().volume_res[0] * _dr.properties().volume_res[1] *
@@ -1063,8 +1067,7 @@ void VolumeRenderCL::createEnvironmentMap(const char *file_name)
         std::cout << "Loaded environment map " << file_name << std::endl;
     }
 
-    try
-    {
+    try {
         _raycastKernel.setArg(ENVIRONMENT, _environmentMap);
     }
     catch (cl::Error err) {

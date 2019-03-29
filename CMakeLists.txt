@@ -1,7 +1,7 @@
-#####################################
-#####  OpenCL Volume Raycaster  #####
-##### (c) 2018 Valentin Bruder  #####
-#####################################
+#########################################
+#####  OpenCL Volume Raycaster      #####
+##### (c) 2018-2019 Valentin Bruder #####
+#########################################
 
 cmake_minimum_required(VERSION 3.9)
 
@@ -9,7 +9,7 @@ set(PROJECT "VolumeRaycasterCL")
 project(${PROJECT} VERSION 1.0 DESCRIPTION "Volume raycaster based on OpenCL" LANGUAGES CXX)
 
 # require c++14
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 add_definitions(-DNOMINMAX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin")
