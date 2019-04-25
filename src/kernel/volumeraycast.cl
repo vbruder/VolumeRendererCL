@@ -509,6 +509,31 @@ float2 get_environment_coords(const float3 rayDir)
                     acos(max(min(rayDir.y, 1.0f), -1.0f)) * (float)(1.0 / M_PI));
 }
 
+//
+uint4 getLastHit(__read_only image2d_t inHitImg, const int2 groupId)
+{
+    uint4 lastHit = read_imageui(inHitImg, groupId);
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x+1, groupId.y  ));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x-1, groupId.y  ));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x  , groupId.y+1));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x  , groupId.y-1));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x+1, groupId.y+1));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x-1, groupId.y-1));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x-1, groupId.y+1));
+    lastHit += read_imageui(inHitImg, (int2)(groupId.x+1, groupId.y-1));
+    return lastHit;
+}
+
+// transform vector using 3x3 matrix
+float3 transformVec3(const float16 mat, const float3 vec)
+{
+    float3 result;
+    result.x = dot(mat.s012, vec);
+    result.y = dot(mat.s456, vec);
+    result.z = dot(mat.s89a, vec);
+    return result;
+}
+
 
 /**
  * ===============================
@@ -551,15 +576,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     if (imgEss)
     {
         hits = 0;
-        uint4 lastHit = read_imageui(inHitImg, (int2)(get_group_id(0)  , get_group_id(1)  ));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)+1, get_group_id(1)  ));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)-1, get_group_id(1)  ));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)  , get_group_id(1)+1));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)  , get_group_id(1)-1));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)+1, get_group_id(1)+1));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)-1, get_group_id(1)-1));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)-1, get_group_id(1)+1));
-        lastHit += read_imageui(inHitImg,      (int2)(get_group_id(0)+1, get_group_id(1)-1));
+        uint4 lastHit = getLastHit(inHitImg, (int2)(get_group_id(0), get_group_id(1)));
         if (!lastHit.x)
         {
             write_imagef(outImg, texCoords, showEss ? (float4)(1.f) - backgroundColor : backgroundColor);
@@ -589,10 +606,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     // (with FoV of 90° and near plane in range [-1,+1]).
     float3 nearPlanePos = fast_normalize((float3)(imgCoords, -1.0f));
     // transform nearPlane from view space to world space
-    float3 rayDir = (float3)(0.f);
-    rayDir.x = dot(viewMat.s012, nearPlanePos);
-    rayDir.y = dot(viewMat.s456, nearPlanePos);
-    rayDir.z = dot(viewMat.s89a, nearPlanePos);
+    float3 rayDir = transformVec3(viewMat, nearPlanePos);
 
     // camera position in world space (ray origin) is translation vector of view matrix
     float3 camPos = viewMat.s37b*modelScale;
