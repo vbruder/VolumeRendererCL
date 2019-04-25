@@ -170,23 +170,14 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
     {
         cl::Program program = buildProgramFromSource(_contextCL, fileName, buildFlags);
         _raycastKernel = cl::Kernel(program, "volumeRender");
-        cl_float16 view = {{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
-        _raycastKernel.setArg(VIEW, view);
-        _raycastKernel.setArg(SAMPLING_RATE, 1.5f);      // default step size 1.0*voxel size
-        _raycastKernel.setArg(ORTHO, 0);                // perspective cam by default
-        _raycastKernel.setArg(ILLUMINATION, 1);         // illumination on by default
-        _raycastKernel.setArg(SHOW_ESS, 0);
-        _raycastKernel.setArg(LINEAR, 1);
-        cl_float4 bgColor = {{1.f, 1.f, 1.f, 1.f}};
-        _raycastKernel.setArg(BACKGROUND, bgColor);
-        _raycastKernel.setArg(AO, 0);                   // ambient occlusion off by default
-        _raycastKernel.setArg(CONTOURS, 0);             // contour lines off by default
-        _raycastKernel.setArg(AERIAL, 0);               // aerial perspective off by defualt
-        _raycastKernel.setArg(IMG_ESS, 0);
-        _raycastKernel.setArg(RNG_SEED, uint(_generator()));
         const char* c = "";
         createEnvironmentMap(c);
-        _raycastKernel.setArg(USE_GRADIENT, 1);
+
+        // parameter
+        setCameraArgs();
+        setRenderingArgs();
+        setRaycastArgs();
+        setPathtraceArgs();
 
         _genBricksKernel = cl::Kernel(program, "generateBricks");
         _downsamplingKernel = cl::Kernel(program, "downsampling");
@@ -203,6 +194,8 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
  */
 void VolumeRenderCL::setMemObjectsRaycast(const size_t t)
 {
+    // TODO: refactor
+
     _raycastKernel.setArg(VOLUME, _volumesMem.at(t));
     _raycastKernel.setArg(BRICKS, _bricksMem.at(t));
     _raycastKernel.setArg(TFF, _tffMem);
@@ -212,16 +205,17 @@ void VolumeRenderCL::setMemObjectsRaycast(const size_t t)
         _raycastKernel.setArg(OUTPUT, _outputMemNoGL);
     _raycastKernel.setArg(TFF_PREFIX, _tffPrefixMem);
     cl_float3 modelScale = {{_modelScale[0], _modelScale[1], _modelScale[2]}};
-    _raycastKernel.setArg(MODEL_SCALE, modelScale);
+    _rendering_params.modelScale = modelScale;
 
     _raycastKernel.setArg(IN_HIT_IMG, _inputHitMem);
     _raycastKernel.setArg(OUT_HIT_IMG, _outputHitMem);
 
-    _raycastKernel.setArg(RNG_SEED, uint(_generator()));
+    _rendering_params.seed = static_cast<cl_uint>(_generator());
 
     _raycastKernel.setArg(IN_ACCUMULATE, _inAccumulate);
     _raycastKernel.setArg(OUT_ACCUMULATE, _outAccumulate);
-    _raycastKernel.setArg(ITERATION, _iteration);
+
+    setRenderingArgs();
 }
 
 
@@ -387,12 +381,9 @@ void VolumeRenderCL::updateView(const std::array<float, 16> viewMat)
     cl_float16 view;
     for (size_t i = 0; i < 16; ++i)
         view.s[i] = viewMat[i];
-    try{
-        _raycastKernel.setArg(VIEW, view);
-    } catch (cl::Error err) {
-        logCLerror(err);
-    }
-    _iteration = 0;
+    _camera_params.viewMat = view;
+    setCameraArgs();
+    resetIteration();
 }
 
 
@@ -402,13 +393,53 @@ void VolumeRenderCL::updateView(const std::array<float, 16> viewMat)
  */
 void VolumeRenderCL::updateSamplingRate(const double samplingRate)
 {
+    _raycast_params.samplingRate = static_cast<cl_float>(samplingRate);
+    setRaycastArgs();
+}
+
+
+void VolumeRenderCL::setCameraArgs()
+{
     try{
-        _raycastKernel.setArg(SAMPLING_RATE, static_cast<cl_float>(samplingRate));
+        _raycastKernel.setArg(CAMERA, _camera_params);
     } catch (cl::Error err) {
         logCLerror(err);
     }
 }
 
+void VolumeRenderCL::setRenderingArgs()
+{
+    try{
+        _raycastKernel.setArg(RENDERING, _rendering_params);
+    } catch (cl::Error err) {
+        logCLerror(err);
+    }
+}
+
+void VolumeRenderCL::setRaycastArgs()
+{
+    try{
+        _raycastKernel.setArg(RAYCAST, _raycast_params);
+    } catch (cl::Error err) {
+        logCLerror(err);
+    }
+}
+
+void VolumeRenderCL::setPathtraceArgs()
+{
+    try{
+        _raycastKernel.setArg(PATHTRACE, _pathtrace_params);
+    } catch (cl::Error err) {
+        logCLerror(err);
+    }
+}
+
+void VolumeRenderCL::resetIteration()
+{
+//    _iteration = 0;
+    _rendering_params.iteration = 0;
+    setRenderingArgs();
+}
 
 /**
  * @brief VolumeRenderCL::updateOutputImg
@@ -489,7 +520,8 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height, const s
 //        _inAccumulate = tmp;
 //        _raycastKernel.setArg(IN_ACCUMULATE,  (_iteration % 2) ? _outAccumulate : _inAccumulate);
 //        _raycastKernel.setArg(OUT_ACCUMULATE, (_iteration % 2) ? _inAccumulate : _outAccumulate);
-        _iteration++;
+//        _iteration++;
+        _rendering_params.iteration++;
 
         _queueCL.enqueueReleaseGLObjects(&memObj);
         _queueCL.finish();    // global sync
@@ -642,7 +674,7 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
     {
         cl::ImageFormat format;
         auto co = _dr.properties().image_channel_order;
-        if (co == "R" || co == "" || co == "I")
+        if (co == "R" || co == "" || co == "I" || co == "LUMINANCE")
             format.image_channel_order = CL_R;
         else if (co == "RG")
             format.image_channel_order = CL_RG;
@@ -654,6 +686,8 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
             format.image_channel_order = CL_ARGB;
         else if (co == "BGRA")
             format.image_channel_order = CL_BGRA;
+        else
+            throw std::invalid_argument("Unknown or invalid volume color format.");
 
         unsigned int formatMultiplier = sizeof(cl_uchar);
         if (_dr.properties().format == "UCHAR")
@@ -802,6 +836,7 @@ void VolumeRenderCL::setTransferFunction(std::vector<unsigned char> &tff)
             prefixSum.push_back(static_cast<unsigned int>(tff.at(i)));
         std::partial_sum(prefixSum.begin(), prefixSum.end(), prefixSum.begin());
         setTffPrefixSum(prefixSum);
+        resetIteration();
     }
     catch (cl::Error err)
     {
@@ -840,12 +875,8 @@ void VolumeRenderCL::setTffPrefixSum(std::vector<unsigned int> &tffPrefixSum)
  */
 void VolumeRenderCL::setCamOrtho(bool setCamOrtho)
 {
-    if (!this->hasData())
-        return;
-
-    try {
-        _raycastKernel.setArg(ORTHO, static_cast<cl_uint>(setCamOrtho));
-    } catch (cl::Error err) { logCLerror(err); }
+    _camera_params.ortho = static_cast<cl_uint>(setCamOrtho);
+    setCameraArgs();
 }
 
 /**
@@ -854,9 +885,8 @@ void VolumeRenderCL::setCamOrtho(bool setCamOrtho)
  */
 void VolumeRenderCL::setIllumination(unsigned int illum)
 {
-    try {
-        _raycastKernel.setArg(ILLUMINATION, static_cast<cl_uint>(illum));
-    } catch (cl::Error err) { logCLerror(err); }
+    _rendering_params.illumType = static_cast<cl_uint>(illum);
+    setRenderingArgs();
 }
 
 
@@ -866,9 +896,8 @@ void VolumeRenderCL::setIllumination(unsigned int illum)
  */
 void VolumeRenderCL::setAmbientOcclusion(bool ao)
 {
-    try {
-        _raycastKernel.setArg(AO, static_cast<cl_uint>(ao));
-    } catch (cl::Error err) { logCLerror(err); }
+    _raycast_params.useAO = static_cast<cl_uint>(ao);
+    setRaycastArgs();
 }
 
 
@@ -878,9 +907,8 @@ void VolumeRenderCL::setAmbientOcclusion(bool ao)
  */
 void VolumeRenderCL::setShowESS(bool showESS)
 {
-    try {
-        _raycastKernel.setArg(SHOW_ESS, static_cast<cl_uint>(showESS));
-    } catch (cl::Error err) { logCLerror(err); }
+    _rendering_params.showEss = static_cast<cl_uint>(showESS);
+    setRenderingArgs();
 }
 
 
@@ -890,9 +918,8 @@ void VolumeRenderCL::setShowESS(bool showESS)
  */
 void VolumeRenderCL::setLinearInterpolation(bool linearSampling)
 {
-    try {
-        _raycastKernel.setArg(LINEAR, static_cast<cl_uint>(linearSampling));
-    } catch (cl::Error err) { logCLerror(err); }
+    _rendering_params.useLinear = static_cast<cl_uint>(linearSampling);
+    setRenderingArgs();
 }
 
 /**
@@ -901,9 +928,8 @@ void VolumeRenderCL::setLinearInterpolation(bool linearSampling)
  */
 void VolumeRenderCL::setContours(bool contours)
 {
-    try {
-        _raycastKernel.setArg(CONTOURS, static_cast<cl_uint>(contours));
-    } catch (cl::Error err) { logCLerror(err); }
+    _raycast_params.contours = static_cast<cl_uint>(contours);
+    setRaycastArgs();
 }
 
 /**
@@ -912,9 +938,8 @@ void VolumeRenderCL::setContours(bool contours)
  */
 void VolumeRenderCL::setAerial(bool aerial)
 {
-    try {
-        _raycastKernel.setArg(AERIAL, static_cast<cl_uint>(aerial));
-    } catch (cl::Error err) { logCLerror(err); }
+    _raycast_params.aerial = static_cast<cl_uint>(aerial);
+    setRaycastArgs();
 }
 
 /**
@@ -923,10 +948,9 @@ void VolumeRenderCL::setAerial(bool aerial)
  */
 void VolumeRenderCL::setImgEss(bool useEss)
 {
-    try {
-        _raycastKernel.setArg(IMG_ESS,  static_cast<cl_uint>(useEss));
-        _useImgESS = useEss;
-    } catch (cl::Error err) { logCLerror(err); }
+    _rendering_params.imgEss = static_cast<cl_uint>(useEss);
+    setRenderingArgs();
+    _useImgESS = useEss;
 }
 
 /**
@@ -954,10 +978,9 @@ void VolumeRenderCL::setObjEss(bool useEss)
  */
 void VolumeRenderCL::setBackground(std::array<float, 4> color)
 {
-    cl_float3 bgColor = {{color[0], color[1], color[2], color[3]}};
-    try {
-        _raycastKernel.setArg(BACKGROUND, bgColor);
-    } catch (cl::Error err) { logCLerror(err); }
+    cl_float3 bgColor = {{color[0], color[1], color[2]}};
+    _rendering_params.backgroundColor = bgColor;
+    setRenderingArgs();
 }
 
 /**
@@ -966,9 +989,15 @@ void VolumeRenderCL::setBackground(std::array<float, 4> color)
  */
 void VolumeRenderCL::setUseGradient(bool useGradient)
 {
-    try {
-        _raycastKernel.setArg(USE_GRADIENT, static_cast<cl_uint>(useGradient));
-    } catch (cl::Error err) { logCLerror(err); }
+    _rendering_params.useGradient = static_cast<cl_uint>(useGradient);
+    setRenderingArgs();
+}
+
+void VolumeRenderCL::setTechnique(VolumeRenderCL::technique tech)
+{
+    _rendering_params.technique = static_cast<uint>(tech);
+    setRenderingArgs();
+    resetIteration();
 }
 
 /**

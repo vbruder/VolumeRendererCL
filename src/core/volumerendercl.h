@@ -37,6 +37,44 @@
 class VolumeRenderCL
 {
 public:
+
+    // structs
+    typedef struct tag_camera_params
+    {
+        cl_float16 viewMat = {{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}};
+        cl_uint ortho = 0;         // bool
+    } camera_params;
+
+    typedef struct tag_rendering_params
+    {
+        cl_float4 backgroundColor = {{1,1,1,1}};
+
+        cl_float3 modelScale = {{1,1,1}};
+        cl_uint illumType = 1;     // 0-off, 1-central diff, 2-central diff+tff, 3-sobel, 4-gradient mag, 5-cel shading
+
+        cl_uint imgEss = 0;        // bool
+        cl_uint showEss = 0;       // bool
+        cl_uint useLinear = 1;     // bool
+        cl_uint useGradient = 1;   // bool
+
+        cl_uint technique = 0;     // ray cast (0) or path tracing (1)
+        cl_uint seed = 42;
+        cl_uint iteration = 0;
+    } rendering_params;
+
+    typedef struct tag_raycast_params
+    {
+        cl_float samplingRate = 1.5f;
+        cl_uint useAO = 0;         // bool
+        cl_uint contours = 0;      // bool
+        cl_uint aerial = 0;        // bool
+    } raycast_params;
+
+    typedef struct tag_pathtrace_params
+    {
+        cl_float max_extinction = 100.f;
+    } pathtrace_params;
+
     /**
      * @brief The OpenCL kernel argument enum.
      */
@@ -46,27 +84,16 @@ public:
         , BRICKS     = 1 // low resolution brick volume             image3d_t
         , TFF        = 2 // transfer function array                 image1d_t
         , OUTPUT         // output image                            image2d_t
-        , SAMPLING_RATE  // step size factor                        cl_float
-        , VIEW           // view matrix                             float16
-        , ORTHO          // use orthographic camera                 cl_uint (bool)
-        , ILLUMINATION   // use illumination                        cl_uint
-        , SHOW_ESS       // visualize empty space skipping          cl_uint (bool)
-        , LINEAR         // use linear interpolation, not nearest   cl_uint (bool)
-        , BACKGROUND     // background color RGBA                   cl_float4
         , TFF_PREFIX     // prefix sum of transfer function         image1d_t
-        , AO             // use ambient occlusion                   cl_uint (bool)
-        , MODEL_SCALE    // model scaling factor                    cl_float3
-        , CONTOURS       // show contour lines                      cl_uint (bool)
-        , AERIAL         // use aerial perspective                  cl_uint (bool)
+        , IN_ACCUMULATE  // in accumulated image buffer             image2d_t
+        , OUT_ACCUMULATE // output for last image                   image2d_t
         , IN_HIT_IMG     // input image for image order ESS         image2d_t (UINT)
         , OUT_HIT_IMG    // output image for image order ESS        image2d_t (UINT)
-        , IMG_ESS        // image order empty space skipping        cl_uint (bool)
-        , RNG_SEED       // seed to generate random numbers
-        , IN_ACCUMULATE  // in accumulated image buffer
-        , OUT_ACCUMULATE // output for last image
-        , ITERATION      // iteration sice last interaction
-        , ENVIRONMENT    // environment map
-        , USE_GRADIENT   // use gradient for brackgrount (relative to y-axis)
+        , ENVIRONMENT    // environment map                         image2d_t
+        , CAMERA
+        , RENDERING
+        , RAYCAST
+        , PATHTRACE
     };
 
     // mipmap down-scaling metric
@@ -76,6 +103,13 @@ public:
         MAX,
         AVG,
         DENSITY,
+    };
+
+    // rendering technique
+    enum technique
+    {
+          TECH_RAYCAST = 0
+        , TECH_PATHTRACE = 1
     };
 
     /**
@@ -287,6 +321,13 @@ public:
      * @param useGradient
      */
     void setUseGradient(bool useGradient);
+
+    /**
+     * @brief setTechnique
+     * @param tech
+     */
+    void setTechnique(technique tech);
+
 private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.
@@ -360,6 +401,13 @@ private:
      */
     void initKernel(const std::string fileName, const std::string buildFlags = "");
 
+    // set kernel args
+    void setCameraArgs();
+    void setRenderingArgs();
+    void setRaycastArgs();
+    void setPathtraceArgs();
+    void resetIteration();
+
     /**
      * @brief Log a OpenCL error message.
      * @param err The OpenCL error object to be logged.
@@ -396,6 +444,11 @@ private:
     uint _iteration = 0;
     // rng
     std::mt19937 _generator;
+    // opencl kernel args
+    camera_params _camera_params;
+    rendering_params _rendering_params;
+    raycast_params _raycast_params;
+    pathtrace_params _pathtrace_params;
 
     DatRawReader _dr;
 };

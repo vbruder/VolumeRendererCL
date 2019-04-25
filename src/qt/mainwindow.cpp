@@ -118,6 +118,11 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->cbIllum, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             ui->volumeRenderWidget, &VolumeRenderWidget::setIllumination);
     connect(ui->pbBgColor, &QPushButton::released, this, &MainWindow::chooseBackgroundColor);
+    // radio buttons
+    connect(ui->rbRaycast, &QRadioButton::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::enableRaycast);
+    connect(ui->rbPathtrace, &QRadioButton::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::enablePathtrace);
     // check boxes
     connect(ui->chbLinear, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setLinearInterpolation);

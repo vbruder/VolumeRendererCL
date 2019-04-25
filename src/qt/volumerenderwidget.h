@@ -136,6 +136,8 @@ public slots:
     void reloadKernels();
 
     const std::array<double, 256> &getHistogram(unsigned int timestep = 0);
+    void enableRaycast();
+    void enablePathtrace();
 signals:
     void fpsChanged(double);
     void frameSizeChanged(QSize);

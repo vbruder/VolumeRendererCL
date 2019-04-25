@@ -1085,7 +1085,6 @@ void VolumeRenderWidget::wheelEvent(QWheelEvent *event)
     float t = 1600.0;
     if (event->modifiers() & Qt::ShiftModifier)
         t *= 6.f;
-
     // limit translation to origin, otherwise camera setup breaks (flips)
     _translation.setZ(qMax(0.01f, _translation.z() - event->angleDelta().y() / t));
     updateView();
@@ -1403,4 +1402,20 @@ void VolumeRenderWidget::setEnvironmentMap(QString fileName)
     } catch (std::runtime_error e) {
         qWarning() << e.what();
     }
+}
+
+/**
+ * @brief VolumeRenderWidget::setRaycast
+ */
+void VolumeRenderWidget::enableRaycast()
+{
+        _volumerender.setTechnique(VolumeRenderCL::TECH_RAYCAST);
+}
+
+/**
+ * @brief VolumeRenderWidget::enablePathtrace
+ */
+void VolumeRenderWidget::enablePathtrace()
+{
+        _volumerender.setTechnique(VolumeRenderCL::TECH_PATHTRACE);
 }

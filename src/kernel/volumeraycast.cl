@@ -405,7 +405,7 @@ float get_extinction(const float max_extinction,
     return read_imagef(vol, linearSmp, samplePos).x;
 }
 
-
+//
 bool sample_interaction(uint rand,
                         float3 *ray_pos,
                         const float3 ray_dir,
@@ -534,6 +534,43 @@ float3 transformVec3(const float16 mat, const float3 vec)
     return result;
 }
 
+// structs
+typedef struct tag_camera_params
+{
+    float16 viewMat;
+    uint ortho;         // bool
+} camera_params;
+
+typedef struct tag_rendering_params
+{
+    float4 backgroundColor;
+
+    float3 modelScale;
+    uint illumType;     // 0-off, 1-central diff, 2-central diff+tff, 3-sobel, 4-gradient mag, 5-cel shading
+
+    uint imgEss;        // bool
+    uint showEss;       // bool
+    uint useLinear;     // bool
+    uint useGradient;   // bool
+
+    uint technique;     // raycast (0) or pathtracing (1)
+    uint seed;
+    uint iteration;
+} rendering_params;
+
+typedef struct __attribute__ ((packed)) tag_raycast_params
+{
+    float samplingRate;
+    uint useAO;         // bool
+    uint contours;      // bool
+    uint aerial;        // bool
+} raycast_params;
+
+typedef struct pathtrace_params
+{
+    float max_extinction;
+} pathtrace_params;
+
 
 /**
  * ===============================
@@ -544,27 +581,16 @@ __kernel void volumeRender(  __read_only image3d_t volData
                            , __read_only image3d_t volBrickData
                            , __read_only image1d_t tffData     // constant transfer function values
                            , __write_only image2d_t outImg
-                           , const float samplingRate
-                           , const float16 viewMat
-                           , const uint orthoCam
-                           , const uint illumType
-                           , const uint showEss
-                           , const uint useLinear
-                           , const float4 backgroundColor
                            , __read_only image1d_t tffPrefix
-                           , const uint useAO
-                           , const float3 modelScale
-                           , const uint contours
-                           , const uint aerial
-                           , __read_only image2d_t inHitImg
-                           , __write_only image2d_t outHitImg
-                           , const uint imgEss
-                           , const uint seed
                            , __read_only image2d_t inAccumulate
                            , __write_only image2d_t outAccumulate
-                           , const uint iteration
+                           , __read_only image2d_t inHitImg
+                           , __write_only image2d_t outHitImg
                            , __read_only image2d_t environment
-                           , const uint useGradient
+                           , const camera_params camera
+                           , const rendering_params render
+                           , const raycast_params raycast
+                           , const pathtrace_params pathtrace
                            )
 {
     int2 globalId = (int2)(get_global_id(0), get_global_id(1));
@@ -573,13 +599,14 @@ __kernel void volumeRender(  __read_only image3d_t volData
     int2 texCoords = globalId;
 
     local uint hits;
-    if (imgEss)
+    if (render.imgEss)
     {
         hits = 0;
         uint4 lastHit = getLastHit(inHitImg, (int2)(get_group_id(0), get_group_id(1)));
         if (!lastHit.x)
         {
-            write_imagef(outImg, texCoords, showEss ? (float4)(1.f) - backgroundColor : backgroundColor);
+            write_imagef(outImg, texCoords, render.showEss ? (float4)(1.f) - render.backgroundColor
+                                                           : render.backgroundColor);
             write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
             return;
         }
@@ -606,27 +633,26 @@ __kernel void volumeRender(  __read_only image3d_t volData
     // (with FoV of 90° and near plane in range [-1,+1]).
     float3 nearPlanePos = fast_normalize((float3)(imgCoords, -1.0f));
     // transform nearPlane from view space to world space
-    float3 rayDir = transformVec3(viewMat, nearPlanePos);
-
+    float3 rayDir = transformVec3(camera.viewMat, nearPlanePos);
     // camera position in world space (ray origin) is translation vector of view matrix
-    float3 camPos = viewMat.s37b*modelScale;
+    float3 camPos = camera.viewMat.s37b*render.modelScale;
 
-    if (orthoCam)
+    if (camera.ortho)
     {
-        camPos = (float3)(viewMat.s37b);
-        float3 viewPlane_x = viewMat.s048;
-        float3 viewPlane_y = viewMat.s159;
-        float3 viewPlane_z = viewMat.s26a;
+        camPos = (float3)(camera.viewMat.s37b);
+        float3 viewPlane_x = camera.viewMat.s048;
+        float3 viewPlane_y = camera.viewMat.s159;
+        float3 viewPlane_z = camera.viewMat.s26a;
         rayDir = -viewPlane_z;
         nearPlanePos = camPos + imgCoords.x*viewPlane_x + imgCoords.y*viewPlane_y;
         nearPlanePos *= length(camPos);
-        camPos = nearPlanePos * modelScale;
+        camPos = nearPlanePos * render.modelScale;
     }
-    rayDir = fast_normalize(rayDir*modelScale);
+    rayDir = fast_normalize(rayDir*render.modelScale);
 
     // sample environment map as background color if set
-    float4 envirCol = backgroundColor;
-    envirCol *= useGradient ? (float4)(0.7f + 0.5f * rayDir.y) : 1.f;
+    float4 envirCol = render.backgroundColor;
+    envirCol *= render.useGradient ? (float4)(0.7f + 0.5f * rayDir.y) : 1.f;
     if (get_image_dim(environment).x > 1)
         envirCol = read_imagef(environment, linearSmp, get_environment_coords(rayDir));
 
@@ -638,29 +664,25 @@ __kernel void volumeRender(  __read_only image3d_t volData
     if (!hit || tfar < 0)
     {
         write_imagef(outImg, texCoords, envirCol);
-        if (imgEss)
+        if (render.imgEss)
             write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
         return;
     }
 
-    //write_imagef(outImg, texCoords, (float4)(random, 0, 0, 1.f));
-    //return;
-
-#define PATH_TRACE
-#ifdef PATH_TRACE
+    if (render.technique == 1) // path tracing
     {
-        uint random = ParallelRNG3(texCoords.x, texCoords.y, seed);
-        // TODO: max_extinction as parameter
-        float3 col = trace_volume(random, camPos, rayDir, tnear, 100.f, volData, tffData, envirCol);
+        uint random = ParallelRNG3(texCoords.x, texCoords.y, render.seed);
+        float3 col = trace_volume(random, camPos, rayDir, tnear, pathtrace.max_extinction,
+                                  volData, tffData, envirCol);
         // Accumulation
-        if (iteration == 0)
+        if (render.iteration == 0)
         {
             write_imagef(outAccumulate, texCoords, (float4)(col, 1.f));
         }
         else
         {
             float3 prevCol = read_imagef(inAccumulate, nearestIntSmp, texCoords).xyz;
-            col = prevCol + (col - prevCol) / (float3)(iteration + 1);
+            col = prevCol + (col - prevCol) / (float3)(render.iteration + 1);
             write_imagef(outAccumulate, texCoords, (float4)(col, 1.f));
         }
         //col *= (1.f + col*0.1f) / (1.f + col);
@@ -668,22 +690,20 @@ __kernel void volumeRender(  __read_only image3d_t volData
         write_imagef(outImg, texCoords, (float4)(col, 1.f));
         return;
     }
-#endif
-
 
     float sampleDist = tfar - tnear;
     if (sampleDist <= 0.f)
         return;
     int3 volRes = get_image_dim(volData).xyz;
     float stepSize = min(sampleDist, sampleDist /
-                            (samplingRate*length(sampleDist*rayDir*convert_float3(volRes))));
+                            (raycast.samplingRate*length(sampleDist*rayDir*convert_float3(volRes))));
     float samples = ceil(sampleDist/stepSize);
     stepSize = sampleDist/samples;
     float offset = stepSize*rand*0.9f; // offset by 'random' distance to avoid moiré pattern
 
     // raycast parameters
     tnear = max(0.f, tnear);    // clamp to near plane
-    float4 result = backgroundColor;
+    float4 result = render.backgroundColor;
     float alpha = 0.f;
     float3 pos = (float3)(0);
     float density = 0.f;
@@ -692,7 +712,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     float t = tnear;
 
     float3 voxLen = (float3)(1.f) / convert_float3(volRes);
-    float refSamplingInterval = 1.f / samplingRate;
+    float refSamplingInterval = 1.f / raycast.samplingRate;
     float t_exit = tfar;
 
 #ifdef ESS
@@ -760,7 +780,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
             pos = pos * 0.5f + 0.5f;    // normalize to [0,1]
 
             float4 gradient = (float4)(0.f);
-            if (illumType == 4)   // gradient magnitude based shading
+            if (render.illumType == 4)   // gradient magnitude based shading
             {
                 gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
                 tfColor = read_imagef(tffData, linearSmp, -gradient.w);
@@ -769,20 +789,26 @@ __kernel void volumeRender(  __read_only image3d_t volData
             {
                 if (get_image_channel_order(volData) == CLK_R)
                 {
-                    density = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x
-                                        : read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
+                    density = render.useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x
+                                               : read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
 //                    density /= 10.f;  // TODO: normalization with max density
                     tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
-                    if (tfColor.w > 0.1f && illumType)
+                    if (tfColor.w > 0.1f && render.illumType)
                     {
-                        if (illumType == 1)         // central diff
+                        switch (render.illumType)
+                        {
+                        case 1:     // central diff
                             gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
-                        else if (illumType == 2)    // central diff & transfer function
+                            break;
+                        case 2:     // central diff & transfer function
                             gradient = -gradientCentralDiffTff(volData, (float4)(pos, 1.f), tffData);
-                        else if (illumType == 3)    // sobel filter
+                            break;
+                        case 3:     // sobel filter
                             gradient = -gradientSobel(volData, (float4)(pos, 1.f));
-
-                        if (illumType == 5)
+                        default:
+                            break;
+                        }
+                        if (render.illumType == 5)
                         {
                             gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
                             tfColor.xyz = celShading(tfColor.xyz, -rayDir, gradient.xyz);
@@ -790,9 +816,9 @@ __kernel void volumeRender(  __read_only image3d_t volData
                         else
                             tfColor.xyz = illumination((float4)(pos, 1.f), tfColor.xyz, -rayDir, gradient.xyz);
                     }
-                    if (tfColor.w > 0.1f && contours) // edge enhancement
+                    if (tfColor.w > 0.1f && raycast.contours) // edge enhancement
                     {
-                        if (!illumType) // no illumination
+                        if (!render.illumType) // no illumination
                             gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
                         tfColor.xyz *= fabs(dot(rayDir, gradient.xyz));
                     }
@@ -800,22 +826,22 @@ __kernel void volumeRender(  __read_only image3d_t volData
                 // RGBA: use values directly
                 else if (get_image_channel_order(volData) == CLK_RGBA)
                 {
-                    tfColor = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
-                                        : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
+                    tfColor = render.useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
+                                               : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
                 }
                 // RG: 2D vector, map magnitude to alpha
                 else if (get_image_channel_order(volData) == CLK_RG)
                 {
-                    tfColor = useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
-                                        : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
+                    tfColor = render.useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f))
+                                               : read_imagef(volData, nearestSmp, (float4)(pos, 1.f));
                     //tfColor.xyz = read_imagef(tffData, linearSmp, tfColor.x).xyz;
                     density = length(tfColor.y / 1.f);
                     tfColor.y = 0.f;
                     tfColor.w = read_imagef(tffData, linearSmp, density).w;
                 }
             }
-            tfColor.xyz = backgroundColor.xyz - tfColor.xyz;
-            if (aerial) // depth cue as aerial perspective
+            tfColor.xyz = render.backgroundColor.xyz - tfColor.xyz;
+            if (raycast.aerial) // depth cue as aerial perspective
             {
                 float depthCue = 1.f - (t - tnear)/sampleDist; // [0..1]
                 tfColor.w *= depthCue;
@@ -829,7 +855,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
             if (t >= tfar) break;
             if (alpha > ERT_THRESHOLD)   // early ray termination check
             {
-                if (useAO)  // ambient occlusion only on solid surfaces
+                if (raycast.useAO)  // ambient occlusion only on solid surfaces
                 {
                     float3 n = -gradientCentralDiff(volData, (float4)(pos, 1.f)).xyz;
                     float ao = calcAO(n, &taus, volData, pos, length(voxLen)*0.9f, length(voxLen)*5.f, tffData);
@@ -847,11 +873,11 @@ __kernel void volumeRender(  __read_only image3d_t volData
 #endif  // ESS
 
     // visualize empty space skipping
-    if (showEss)
+    if (render.showEss)
     {
         if (checkBoundingBox(pos, voxLen, (float2)(0.f, 1.f)))
         {
-            result.xyz = fabs((float3)(1.f) - backgroundColor.xyz);
+            result.xyz = fabs((float3)(1.f) - render.backgroundColor.xyz);
             alpha = 1.f;
         }
     }
@@ -860,10 +886,10 @@ __kernel void volumeRender(  __read_only image3d_t volData
     write_imagef(outImg, texCoords, result);
 
     // image order empty space skipping
-    if (imgEss)
+    if (render.imgEss)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (any(result.xyz != backgroundColor.xyz))
+        if (any(result.xyz != render.backgroundColor.xyz))
             ++hits;
         barrier(CLK_LOCAL_MEM_FENCE);
         if (get_local_id(0) + get_local_id(1) == 0)
