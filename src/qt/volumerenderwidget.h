@@ -114,7 +114,7 @@ public slots:
      * @param useEss
      */
     void setObjEss(bool useEss);
-    void setDrawBox(bool box);
+    void setShowEss(bool showEss);
     void setBackgroundColor(const QColor col);
     void setImageSamplingRate(const double samplingRate);
     void setShowOverlay(bool showOverlay);

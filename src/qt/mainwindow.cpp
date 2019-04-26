@@ -98,6 +98,17 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::reloadKernels);
     connect(ui->actionRealoadKernel, &QAction::triggered,
             this, &MainWindow::updateTransferFunctionFromGradientStops);
+    // menu - rendering
+    connect(ui->actionSet_background_color, &QAction::triggered,
+            this, &MainWindow::chooseBackgroundColor);
+    connect(ui->actionInterpolation, &QAction::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setLinearInterpolation);
+    connect(ui->actionObjectESS, &QAction::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setObjEss);
+    connect(ui->actionImageESS, &QAction::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setImgEss);
+    connect(ui->actionShow_skipped, &QAction::toggled,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setShowEss);
 
     // future watcher for concurrent data loading
     _watcher = new QFutureWatcher<void>(this);
@@ -117,27 +128,25 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::setImageSamplingRate);
     connect(ui->cbIllum, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             ui->volumeRenderWidget, &VolumeRenderWidget::setIllumination);
-    connect(ui->pbBgColor, &QPushButton::released, this, &MainWindow::chooseBackgroundColor);
+//    connect(ui->pbBgColor, &QPushButton::released, this, &MainWindow::chooseBackgroundColor);
     // radio buttons
     connect(ui->rbRaycast, &QRadioButton::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::enableRaycast);
     connect(ui->rbPathtrace, &QRadioButton::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::enablePathtrace);
     // check boxes
-    connect(ui->chbLinear, &QCheckBox::toggled,
-            ui->volumeRenderWidget, &VolumeRenderWidget::setLinearInterpolation);
     connect(ui->chbAmbientOcclusion, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setAmbientOcclusion);
     connect(ui->chbContours, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setContours);
     connect(ui->chbAerial, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setAerial);
-    connect(ui->chbImageESS, &QCheckBox::toggled,
-            ui->volumeRenderWidget, &VolumeRenderWidget::setImgEss);
-    connect(ui->chbObjectESS, &QCheckBox::toggled,
-            ui->volumeRenderWidget, &VolumeRenderWidget::setObjEss);
-    connect(ui->chbBox, &QCheckBox::toggled,
-            ui->volumeRenderWidget, &VolumeRenderWidget::setDrawBox);
+//    connect(ui->chbImageESS, &QCheckBox::toggled,
+//            ui->volumeRenderWidget, &VolumeRenderWidget::setImgEss);
+//    connect(ui->chbObjectESS, &QCheckBox::toggled,
+//            ui->volumeRenderWidget, &VolumeRenderWidget::setObjEss);
+//    connect(ui->chbBox, &QCheckBox::toggled,
+//            ui->volumeRenderWidget, &VolumeRenderWidget::setShowEss);
     connect(ui->chbOrtho, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setCamOrtho);
     connect(ui->chbContRendering, &QCheckBox::toggled,
@@ -379,7 +388,7 @@ void MainWindow::loadCamState()
             ui->dsbSamplingRate->setValue(json["rayStepSize"].toDouble());
 
     if (json.contains("useLerp") && json["useLerp"].isBool())
-            ui->chbLinear->setChecked(json["useLerp"].toBool());
+            ui->actionInterpolation->setChecked(json["useLerp"].toBool());
     if (json.contains("useAO") && json["useAO"].isBool())
             ui->chbAmbientOcclusion->setChecked(json["useAO"].toBool());
     if (json.contains("showContours") && json["showContours"].isBool())
@@ -387,7 +396,7 @@ void MainWindow::loadCamState()
     if (json.contains("useAerial") && json["useAerial"].isBool())
             ui->chbAerial->setChecked(json["useAerial"].toBool());
     if (json.contains("showBox") && json["showBox"].isBool())
-            ui->chbBox->setChecked(json["showBox"].toBool());
+            ui->actionShow_skipped->setChecked(json["showBox"].toBool());
     if (json.contains("useOrtho") && json["useOrtho"].isBool())
             ui->chbOrtho->setChecked(json["useOrtho"].toBool());
     // camera paramters
@@ -419,11 +428,11 @@ void MainWindow::saveCamState()
     stateObject["imgResFactor"] = ui->dsbImgSampling->value();
     stateObject["rayStepSize"] = ui->dsbSamplingRate->value();
     // rendering flags
-    stateObject["useLerp"] = ui->chbLinear->isChecked();
+    stateObject["useLerp"] = ui->actionInterpolation->isChecked();
     stateObject["useAO"] = ui->chbAmbientOcclusion->isChecked();
     stateObject["showContours"] = ui->chbContours->isChecked();
     stateObject["useAerial"] = ui->chbAerial->isChecked();
-    stateObject["showBox"] = ui->chbBox->isChecked();
+    stateObject["showBox"] = ui->actionShow_skipped->isChecked();
     stateObject["useOrtho"] = ui->chbOrtho->isChecked();
     // camera parameters
     ui->volumeRenderWidget->write(stateObject);
@@ -587,7 +596,7 @@ void MainWindow::saveRawTff()
             const std::vector<unsigned char> tff = ui->volumeRenderWidget->getRawTransferFunction(stops);
             foreach (unsigned char c, tff)
             {
-                out << (int)c << " ";
+                out << int(c) << " ";
             }
             file.close();
         }
@@ -617,7 +626,7 @@ void MainWindow::loadRawTff()
         {
             while (tff_file >> value)
             {
-                values.push_back((char)value);
+                values.push_back(static_cast<unsigned char>(value));
             }
             tff_file.close();
             ui->volumeRenderWidget->setRawTransferFunction(values);
@@ -643,13 +652,13 @@ void MainWindow::setStatusText()
         status = "File: ";
         status += _fileName;
         status += " | Volume: ";
-        status += QString::number(ui->volumeRenderWidget->getVolumeResolution().x());
+        status += QString::number(double(ui->volumeRenderWidget->getVolumeResolution().x()));
         status += "x";
-        status += QString::number(ui->volumeRenderWidget->getVolumeResolution().y());
+        status += QString::number(double(ui->volumeRenderWidget->getVolumeResolution().y()));
         status += "x";
-        status += QString::number(ui->volumeRenderWidget->getVolumeResolution().z());
+        status += QString::number(double(ui->volumeRenderWidget->getVolumeResolution().z()));
         status += "x";
-        status += QString::number(ui->volumeRenderWidget->getVolumeResolution().w());
+        status += QString::number(double(ui->volumeRenderWidget->getVolumeResolution().w()));
         status += " | Frame: ";
         status += QString::number(ui->volumeRenderWidget->size().width());
         status += "x";

@@ -93,8 +93,21 @@
     </property>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuRendering">
+    <property name="title">
+     <string>Rendering</string>
+    </property>
+    <addaction name="actionSet_background_color"/>
+    <addaction name="actionInterpolation"/>
+    <addaction name="separator"/>
+    <addaction name="actionObjectESS"/>
+    <addaction name="actionImageESS"/>
+    <addaction name="separator"/>
+    <addaction name="actionShow_skipped"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menuRendering"/>
    <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -246,83 +259,14 @@
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>250</height>
+         <height>210</height>
         </size>
        </property>
        <property name="title">
         <string>Rendering</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="11" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbContRendering">
-          <property name="text">
-           <string>Continued rendering</string>
-          </property>
-         </widget>
-        </item>
-        <item row="8" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbAmbientOcclusion">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="text">
-           <string>Ambient occlusion</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="0" colspan="2">
-         <widget class="QRadioButton" name="rbRaycast">
-          <property name="text">
-           <string>Ray casting</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="2" colspan="3">
-         <widget class="QPushButton" name="pbBgColor">
-          <property name="autoFillBackground">
-           <bool>false</bool>
-          </property>
-          <property name="styleSheet">
-           <string notr="true">QPushButton:default {
-   background: yellow;
-}</string>
-          </property>
-          <property name="text">
-           <string>Background color</string>
-          </property>
-         </widget>
-        </item>
-        <item row="10" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbAerial">
-          <property name="text">
-           <string>Aerial perspective</string>
-          </property>
-         </widget>
-        </item>
-        <item row="14" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbBox">
-          <property name="text">
-           <string>Show skipped</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="2" colspan="2">
-         <widget class="QCheckBox" name="chbImageESS">
-          <property name="text">
-           <string>Image ESS</string>
-          </property>
-         </widget>
-        </item>
-        <item row="14" column="2" colspan="3">
+        <item row="13" column="2" colspan="3">
          <widget class="QCheckBox" name="chbGradient">
           <property name="text">
            <string>Gradient background</string>
@@ -332,84 +276,34 @@
           </property>
          </widget>
         </item>
-        <item row="6" column="2" colspan="3">
+        <item row="5" column="0" colspan="2">
+         <widget class="QRadioButton" name="rbRaycast">
+          <property name="text">
+           <string>Ray casting</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="2" colspan="3">
          <widget class="QRadioButton" name="rbPathtrace">
           <property name="text">
            <string>Path tracing</string>
           </property>
          </widget>
         </item>
-        <item row="11" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbOrtho">
+        <item row="8" column="0" colspan="2">
+         <widget class="QCheckBox" name="chbAerial">
           <property name="text">
-           <string>Orthographic</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>Ray</string>
-          </property>
-         </widget>
-        </item>
-        <item row="10" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbContours">
-          <property name="text">
-           <string>Contours</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0" colspan="5">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Sampling rate</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0" colspan="2">
-         <widget class="QLabel" name="label_5">
-          <property name="text">
-           <string>Shading</string>
+           <string>Aerial perspective</string>
           </property>
          </widget>
         </item>
         <item row="13" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbObjectESS">
+         <widget class="QCheckBox" name="chbContRendering">
           <property name="text">
-           <string>Obejct ESS</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QDoubleSpinBox" name="dsbImgSampling">
-          <property name="minimum">
-           <double>0.010000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>8.000000000000000</double>
-          </property>
-          <property name="singleStep">
-           <double>0.010000000000000</double>
-          </property>
-          <property name="value">
-           <double>1.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="8" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbLinear">
-          <property name="text">
-           <string>Interpolation</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
+           <string>Continued rendering</string>
           </property>
          </widget>
         </item>
@@ -432,7 +326,21 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0" colspan="5">
+        <item row="6" column="0" colspan="5">
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>Ray</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="5">
          <widget class="QComboBox" name="cbIllum">
           <property name="currentIndex">
            <number>1</number>
@@ -469,6 +377,29 @@
           </item>
          </widget>
         </item>
+        <item row="7" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbAmbientOcclusion">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Ambient occlusion</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0" colspan="2">
+         <widget class="QCheckBox" name="chbContours">
+          <property name="text">
+           <string>Contours</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_2">
           <property name="text">
@@ -476,10 +407,33 @@
           </property>
          </widget>
         </item>
-        <item row="7" column="0" colspan="5">
-         <widget class="Line" name="line">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+        <item row="8" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbOrtho">
+          <property name="text">
+           <string>Orthographic</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QDoubleSpinBox" name="dsbImgSampling">
+          <property name="minimum">
+           <double>0.010000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>8.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.010000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="5">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Sampling rate</string>
           </property>
          </widget>
         </item>
@@ -691,6 +645,49 @@
     <string>Load environment map...</string>
    </property>
   </action>
+  <action name="actionInterpolation">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Linear interpolation</string>
+   </property>
+  </action>
+  <action name="actionObjectESS">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Object-order empty space skipping</string>
+   </property>
+  </action>
+  <action name="actionImageESS">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Image-order empty space skipping</string>
+   </property>
+  </action>
+  <action name="actionShow_skipped">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show skipped bricks</string>
+   </property>
+  </action>
+  <action name="actionSet_background_color">
+   <property name="text">
+    <string>Set background color</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -715,7 +712,6 @@
  <tabstops>
   <tabstop>dsbImgSampling</tabstop>
   <tabstop>dsbSamplingRate</tabstop>
-  <tabstop>pbBgColor</tabstop>
   <tabstop>cbIllum</tabstop>
   <tabstop>sldTimeStep</tabstop>
   <tabstop>sbTimeStep</tabstop>

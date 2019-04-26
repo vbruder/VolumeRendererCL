@@ -1245,9 +1245,9 @@ void VolumeRenderWidget::setObjEss(const bool useEss)
  * @brief VolumeRenderWidget::setDrawBox
  * @param box
  */
-void VolumeRenderWidget::setDrawBox(const bool box)
+void VolumeRenderWidget::setShowEss(const bool showEss)
 {
-    _volumerender.setShowESS(box);
+    _volumerender.setShowESS(showEss);
     this->updateView();
 }
 
