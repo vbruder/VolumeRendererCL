@@ -1104,3 +1104,13 @@ void VolumeRenderCL::createEnvironmentMap(const char *file_name)
     }
 }
 
+/**
+ * @brief VolumeRenderCL::setExtinction
+ * @param maximum extinction factor for path tracing
+ */
+void VolumeRenderCL::setExtinction(const double extinction)
+{
+    _pathtrace_params.max_extinction = float(extinction);
+    setPathtraceArgs();
+}
+

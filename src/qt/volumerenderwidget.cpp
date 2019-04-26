@@ -1504,3 +1504,12 @@ void VolumeRenderWidget::enablePathtrace()
     _volumerender.setTechnique(VolumeRenderCL::TECH_PATHTRACE);
     this->updateView();
 }
+
+/**
+ * @brief VolumeRenderWidget::setExtinction
+ */
+void VolumeRenderWidget::setExtinction(const double extinction)
+{
+    _volumerender.setExtinction(extinction);
+    this->updateView();
+}

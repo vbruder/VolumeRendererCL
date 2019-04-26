@@ -73,6 +73,8 @@ protected slots:
     void setPlaybackSpeed(int speed);
     void loadEnvironmentMap();
     void playInteractionSequence();
+    void showRaycastControls();
+    void showPathtraceControls();
 protected:
     void dragEnterEvent(QDragEnterEvent *ev) Q_DECL_OVERRIDE;
     void dropEvent(QDropEvent *ev) Q_DECL_OVERRIDE;
@@ -91,6 +93,7 @@ private:
     void writeSettings();
 
     void setStatusText();
+    void setInterpolation();
 
     // ----- Members -----
     Ui::MainWindow *ui;

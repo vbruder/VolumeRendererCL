@@ -153,6 +153,7 @@ public slots:
     void enableRaycast();
     void enablePathtrace();
     void playInteractionSequence(const QString &fileName, bool recording = false);
+    void setExtinction(const double extinction);
 signals:
     void fpsChanged(double);
     void frameSizeChanged(QSize);

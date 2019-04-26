@@ -126,7 +126,7 @@ MainWindow::MainWindow(QWidget *parent) :
     _progBar.setAlignment(Qt::AlignCenter);
     connect(&_timer, &QTimer::timeout, this, &MainWindow::addProgress);
 
-    // connect settings UI
+    // settings UI
     connect(ui->dsbSamplingRate, 
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
             ui->volumeRenderWidget, &VolumeRenderWidget::updateSamplingRate);
@@ -135,44 +135,36 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::setImageSamplingRate);
     connect(ui->cbIllum, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
             ui->volumeRenderWidget, &VolumeRenderWidget::setIllumination);
-//    connect(ui->pbBgColor, &QPushButton::released, this, &MainWindow::chooseBackgroundColor);
-    // radio buttons
+    // technique selection
     connect(ui->rbRaycast, &QRadioButton::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::enableRaycast);
     connect(ui->rbPathtrace, &QRadioButton::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::enablePathtrace);
-    // check boxes
+    connect(ui->rbRaycast, &QRadioButton::toggled, this, &MainWindow::showRaycastControls);
+    connect(ui->rbPathtrace, &QRadioButton::toggled, this, &MainWindow::showPathtraceControls);
+    // render parameters
     connect(ui->chbAmbientOcclusion, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setAmbientOcclusion);
     connect(ui->chbContours, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setContours);
     connect(ui->chbAerial, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setAerial);
-//    connect(ui->chbImageESS, &QCheckBox::toggled,
-//            ui->volumeRenderWidget, &VolumeRenderWidget::setImgEss);
-//    connect(ui->chbObjectESS, &QCheckBox::toggled,
-//            ui->volumeRenderWidget, &VolumeRenderWidget::setObjEss);
-//    connect(ui->chbBox, &QCheckBox::toggled,
-//            ui->volumeRenderWidget, &VolumeRenderWidget::setShowEss);
     connect(ui->chbOrtho, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setCamOrtho);
     connect(ui->chbContRendering, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setContRendering);
     connect(ui->chbGradient, &QCheckBox::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setUseGradient);
-    // connect tff editor
+    connect(ui->dsbExtinction,
+            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged),
+            ui->volumeRenderWidget, &VolumeRenderWidget::setExtinction);
+    // tff editor
     connect(ui->transferFunctionEditor->getEditor(), &TransferFunctionEditor::gradientStopsChanged,
             ui->volumeRenderWidget, &VolumeRenderWidget::updateTransferFunction);
     connect(ui->pbResetTff, &QPushButton::clicked,
             ui->transferFunctionEditor, &TransferFunctionWidget::resetTransferFunction);
-    connect(ui->cbInterpolation, 
-            static_cast<void (QComboBox::*)(const QString &)>(&QComboBox::currentIndexChanged),
-            ui->volumeRenderWidget, &VolumeRenderWidget::setTffInterpolation);
-    connect(ui->cbInterpolation, SIGNAL(currentIndexChanged(QString)),
-            ui->transferFunctionEditor, SLOT(setInterpolation(QString)));
-//    connect(ui->cbInterpolation, qOverload<const QString &>(&QComboBox::currentIndexChanged),
-//            ui->transferFunctionEditor, &TransferFunctionEditor::setInterpolation);
-
+    connect(ui->rbLinear, &QRadioButton::toggled, this, &MainWindow::setInterpolation);
+    connect(ui->rbQuad, &QRadioButton::toggled, this, &MainWindow::setInterpolation);
     connect(ui->transferFunctionEditor->getEditor(), &TransferFunctionEditor::selectedPointChanged,
             ui->colorWheel, &colorwidgets::ColorWheel::setColor);
     connect(ui->colorWheel, &colorwidgets::ColorWheel::colorChanged,
@@ -184,6 +176,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(&_loopTimer, &QTimer::timeout, this, &MainWindow::nextTimestep);
 
+    showRaycastControls();
     // restore settings
     readSettings();
 }
@@ -833,4 +826,43 @@ void MainWindow::playInteractionSequence()
         ui->volumeRenderWidget->playInteractionSequence(pickedFile, ret == QMessageBox::Yes);
         _settings->setValue( "LastInteractionSequence", pickedFile );
     }
+}
+
+/**
+ * @brief MainWindow::setInterpolation
+ */
+void MainWindow::setInterpolation()
+{
+    QString method = "Linear";
+    if (ui->rbQuad->isChecked())
+        method = "Quad";
+
+    ui->volumeRenderWidget->setTffInterpolation(method);
+    ui->transferFunctionEditor->setInterpolation(method);
+}
+
+/**
+ * @brief MainWindow::showRaycastControls
+ */
+void MainWindow::showRaycastControls()
+{
+    ui->chbContours->setVisible(true);
+    ui->chbAmbientOcclusion->setVisible(true);
+    ui->chbAerial->setVisible(true);
+
+    ui->dsbExtinction->setVisible(false);
+    ui->lblExtinction->setVisible(false);
+}
+
+/**
+ * @brief MainWindow::showPathtraceControls
+ */
+void MainWindow::showPathtraceControls()
+{
+    ui->chbContours->setVisible(false);
+    ui->chbAmbientOcclusion->setVisible(false);
+    ui->chbAerial->setVisible(false);
+
+    ui->dsbExtinction->setVisible(true);
+    ui->lblExtinction->setVisible(true);
 }

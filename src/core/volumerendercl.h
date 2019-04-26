@@ -328,6 +328,11 @@ public:
      */
     void setTechnique(technique tech);
 
+    /**
+     * @brief setExtinction
+     * @param extinction
+     */
+    void setExtinction(const double extinction);
 private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.
