@@ -59,8 +59,6 @@
     <addaction name="actionLoadState"/>
     <addaction name="actionSaveState"/>
     <addaction name="separator"/>
-    <addaction name="actionLoad_environment_map"/>
-    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuView">
@@ -79,10 +77,6 @@
     </property>
     <addaction name="actionGenerateLowResVo"/>
     <addaction name="separator"/>
-    <addaction name="actionScreenshot"/>
-    <addaction name="actionRecord"/>
-    <addaction name="actionRecordCamera"/>
-    <addaction name="actionLogInteraction"/>
     <addaction name="separator"/>
     <addaction name="actionSelectOpenCL"/>
     <addaction name="actionRealoadKernel"/>
@@ -98,6 +92,8 @@
      <string>Rendering</string>
     </property>
     <addaction name="actionSet_background_color"/>
+    <addaction name="actionLoad_environment_map"/>
+    <addaction name="separator"/>
     <addaction name="actionInterpolation"/>
     <addaction name="separator"/>
     <addaction name="actionObjectESS"/>
@@ -105,9 +101,21 @@
     <addaction name="separator"/>
     <addaction name="actionShow_skipped"/>
    </widget>
+   <widget class="QMenu" name="menuRecording">
+    <property name="title">
+     <string>Record/Play</string>
+    </property>
+    <addaction name="actionScreenshot"/>
+    <addaction name="actionRecord"/>
+    <addaction name="separator"/>
+    <addaction name="actionRecordCamera"/>
+    <addaction name="actionLogInteraction"/>
+    <addaction name="actionPlay_interaction_sequence"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menuRendering"/>
+   <addaction name="menuRecording"/>
    <addaction name="menuView"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -629,7 +637,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Record camera configuration</string>
+    <string>Record camera configuration...</string>
    </property>
   </action>
   <action name="actionLogInteraction">
@@ -637,7 +645,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Log interaction</string>
+    <string>Log interaction...</string>
    </property>
   </action>
   <action name="actionLoad_environment_map">
@@ -686,6 +694,11 @@
   <action name="actionSet_background_color">
    <property name="text">
     <string>Set background color</string>
+   </property>
+  </action>
+  <action name="actionPlay_interaction_sequence">
+   <property name="text">
+    <string>Play interaction sequence...</string>
    </property>
   </action>
  </widget>

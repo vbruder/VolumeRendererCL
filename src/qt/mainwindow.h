@@ -72,6 +72,7 @@ protected slots:
     void nextTimestep();
     void setPlaybackSpeed(int speed);
     void loadEnvironmentMap();
+    void playInteractionSequence();
 protected:
     void dragEnterEvent(QDragEnterEvent *ev) Q_DECL_OVERRIDE;
     void dropEvent(QDropEvent *ev) Q_DECL_OVERRIDE;

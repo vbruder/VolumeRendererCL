@@ -68,11 +68,24 @@ MainWindow::MainWindow(QWidget *parent) :
             this, &MainWindow::setPlaybackSpeed);
 
     // menu bar actions
+    // menu file
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openVolumeFile);
     connect(ui->actionSaveCpTff, &QAction::triggered, this, &MainWindow::saveTff);
     connect(ui->actionSaveRawTff_2, &QAction::triggered, this, &MainWindow::saveRawTff);
     connect(ui->actionLoadCpTff, &QAction::triggered, this, &MainWindow::loadTff);
     connect(ui->actionLoadRawTff, &QAction::triggered, this, &MainWindow::loadRawTff);
+    connect(ui->actionSaveState, &QAction::triggered, this, &MainWindow::saveCamState);
+    connect(ui->actionLoadState, &QAction::triggered, this, &MainWindow::loadCamState);
+    // menu - edit
+    connect(ui->actionGenerateLowResVo, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::generateLowResVolume);
+    connect(ui->actionSelectOpenCL, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::showSelectOpenCL);
+    connect(ui->actionRealoadKernel, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::reloadKernels);
+    connect(ui->actionRealoadKernel, &QAction::triggered,
+            this, &MainWindow::updateTransferFunctionFromGradientStops);
+    // menu - record / play
     connect(ui->actionScreenshot, &QAction::triggered,
             ui->volumeRenderWidget, &VolumeRenderWidget::saveFrame);
     connect(ui->actionRecord, &QAction::triggered,
@@ -81,24 +94,16 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::toggleViewRecording);
 	connect(ui->actionLogInteraction, &QAction::triggered,
 			ui->volumeRenderWidget, &VolumeRenderWidget::toggleInteractionLogging);
-    connect(ui->actionGenerateLowResVo, &QAction::triggered,
-            ui->volumeRenderWidget, &VolumeRenderWidget::generateLowResVolume);
+    connect(ui->actionPlay_interaction_sequence, &QAction::triggered,
+            this, &MainWindow::playInteractionSequence);
+    // menu - view
     connect(ui->actionResetCam, &QAction::triggered,
             ui->volumeRenderWidget, &VolumeRenderWidget::resetCam);
-    connect(ui->actionSaveState, &QAction::triggered, this, &MainWindow::saveCamState);
-    connect(ui->actionLoadState, &QAction::triggered, this, &MainWindow::loadCamState);
-    connect(ui->actionLoad_environment_map, &QAction::triggered,
-            this, &MainWindow::loadEnvironmentMap);
     connect(ui->actionShowOverlay, &QAction::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setShowOverlay);
-    connect(ui->actionSelectOpenCL, &QAction::triggered,
-            ui->volumeRenderWidget, &VolumeRenderWidget::showSelectOpenCL);
-    connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
-    connect(ui->actionRealoadKernel, &QAction::triggered,
-            ui->volumeRenderWidget, &VolumeRenderWidget::reloadKernels);
-    connect(ui->actionRealoadKernel, &QAction::triggered,
-            this, &MainWindow::updateTransferFunctionFromGradientStops);
     // menu - rendering
+    connect(ui->actionLoad_environment_map, &QAction::triggered,
+            this, &MainWindow::loadEnvironmentMap);
     connect(ui->actionSet_background_color, &QAction::triggered,
             this, &MainWindow::chooseBackgroundColor);
     connect(ui->actionInterpolation, &QAction::toggled,
@@ -109,6 +114,8 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::setImgEss);
     connect(ui->actionShow_skipped, &QAction::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setShowEss);
+    // menu - about
+    connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
 
     // future watcher for concurrent data loading
     _watcher = new QFutureWatcher<void>(this);
@@ -795,7 +802,6 @@ void MainWindow::dropEvent(QDropEvent *ev)
     }
 }
 
-
 /**
  * @brief MainWindow::chooseBackgroundColor
  */
@@ -805,4 +811,26 @@ void MainWindow::chooseBackgroundColor()
     QColor col = dia.getColor();
     if (col.isValid())
         ui->volumeRenderWidget->setBackgroundColor(col);
+}
+
+/**
+ * @brief MainWindow::playInteractionSequence
+ */
+void MainWindow::playInteractionSequence()
+{
+    QFileDialog dia;
+    QString defaultPath = _settings->value( "LastInteractionSequence" ).toString();
+    QString pickedFile = dia.getOpenFileName(
+                this, tr("Open Interaction Sequence"),
+                defaultPath, tr("Interaction sequence files (*.csv)"));
+    if (!pickedFile.isEmpty())
+    {
+        QMessageBox msgBox;
+        msgBox.setText("Do you wish to record the frames from the interaction sequence?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        int ret = msgBox.exec();
+        ui->volumeRenderWidget->playInteractionSequence(pickedFile, ret == QMessageBox::Yes);
+        _settings->setValue( "LastInteractionSequence", pickedFile );
+    }
 }

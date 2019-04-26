@@ -48,6 +48,20 @@ class VolumeRenderWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_3_
 {
     Q_OBJECT
 
+    struct interaction_sequence
+    {
+        bool play = false;
+        QStringList sequence;
+        int pos = 0;
+
+        void restart()
+        {
+            sequence.clear();
+            pos = 0;
+            play = true;
+        }
+    };
+
 public:
     explicit VolumeRenderWidget(QWidget *parent = nullptr);
     virtual ~VolumeRenderWidget() override;
@@ -138,6 +152,7 @@ public slots:
     const std::array<double, 256> &getHistogram(unsigned int timestep = 0);
     void enableRaycast();
     void enablePathtrace();
+    void playInteractionSequence(const QString &fileName, bool recording = false);
 signals:
     void fpsChanged(double);
     void frameSizeChanged(QSize);
@@ -153,6 +168,7 @@ private:
     void paintOrientationAxis(QPainter &p);
     void paintFps(QPainter &p, const double fps, const double lastTime);
     double getFps();
+    void updateViewMatrix();
 
     /**
      * @brief Initialize the OpenCL volume renderer.
@@ -179,6 +195,12 @@ private:
 	 *	          time stamp, interaction type, interaction parameters
 	 */
 	void logInteraction(const QString &str) const;
+
+    /**
+     * @brief setSequenceStep
+     * @param line
+     */
+    void setSequenceStep(QString line);
 
     // -------Member variables--------
     //
@@ -224,4 +246,5 @@ private:
     bool _contRendering;
     QGradientStops _tffStops;
 	QElapsedTimer _timer;
+    interaction_sequence _interaction;
 };

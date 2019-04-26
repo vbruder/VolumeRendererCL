@@ -289,7 +289,6 @@ void VolumeRenderWidget::toggleVideoRecording()
 void VolumeRenderWidget::toggleViewRecording()
 {
     qInfo() << (_logView ? "Stopped view config recording." : "Started view config recording.");
-
     _logView = !_logView;
 
     if (_logView)
@@ -300,15 +299,16 @@ void VolumeRenderWidget::toggleViewRecording()
         if (_viewLogFile.isEmpty())
             return;
     }
-
     updateView();
 }
 
-
+/**
+ * @brief VolumeRenderWidget::toggleInteractionLogging
+ * Log all interactions (camera, tff, timestep) to file.
+ */
 void VolumeRenderWidget::toggleInteractionLogging()
 {
 	qInfo() << (_logInteraction ? "Stopped view config recording." : "Started view config recording.");
-
 	_logInteraction = !_logInteraction;
 
 	if (_logInteraction)
@@ -353,6 +353,68 @@ void VolumeRenderWidget::toggleInteractionLogging()
 	}
 }
 
+/**
+ * @brief VolumeRenderWidget::setSequenceStep
+ * @param line
+ */
+void VolumeRenderWidget::setSequenceStep(QString line)
+{
+    std::cout << line.toStdString() << std::endl;
+
+    if (line.contains("camera"))
+    {
+        int pos = line.lastIndexOf(';');
+        line.remove(',');
+        QStringList values = line.remove(0, pos + 2).split(' ');
+        setCamRotation(QQuaternion(values.at(0).toFloat(), values.at(1).toFloat(),
+                                   values.at(2).toFloat(), values.at(3).toFloat()));
+        setCamTranslation(QVector3D(values.at(4).toFloat(), values.at(5).toFloat(),
+                                    values.at(6).toFloat()));
+        updateViewMatrix();
+    }
+    else if (line.contains("timestep"))
+    {
+        int pos = line.lastIndexOf(';');
+        _timestep = line.remove(0, pos + 2).toInt();
+    }
+    else if (line.contains("transferFunction"))
+    {
+        int pos = line.lastIndexOf(';');
+        QStringList lst = line.remove(0, pos + 2).split(' ');
+        if (lst.back() == "")
+            lst.pop_back();
+        std::vector<unsigned char> values;
+        for (auto &&a : lst)
+            values.push_back(static_cast<unsigned char>(a.toInt()));
+        setRawTransferFunction(values);
+    }
+    else if (line.contains("tffInterpolation"))
+    {
+        int pos = line.lastIndexOf(';');
+        setTffInterpolation(line.remove(0, pos + 2));
+    }
+}
+
+/**
+ * @brief VolumeRenderWidget::playInteractionSequence
+ * @param fileName
+ */
+void VolumeRenderWidget::playInteractionSequence(const QString &fileName, bool recording)
+{
+    QFile f(fileName);
+    if (!f.isOpen() && !f.open(QFile::ReadOnly | QFile::Text))
+        throw std::invalid_argument("Invalid file name for interaction log: " + fileName.toStdString());
+
+    _interaction.restart();
+    QTextStream sequence(&f);
+    QString line;
+    while (sequence.readLineInto(&line))
+        _interaction.sequence.append(line);
+
+    if (recording)
+        toggleVideoRecording();
+    update();
+}
 
 /**
  * @brief VolumeRenderWidget::setTimeStep
@@ -492,6 +554,19 @@ void VolumeRenderWidget::paintGL()
 
     if (_contRendering)
         update();
+
+    if (_interaction.play)
+    {
+        setSequenceStep(_interaction.sequence.at(_interaction.pos));
+        _interaction.pos++;
+        if (_interaction.pos >= _interaction.sequence.size())
+        {
+            if (_recordVideo)
+                toggleVideoRecording();
+            _interaction.play = false;
+        }
+        update();
+    }
 }
 
 
@@ -983,16 +1058,10 @@ void VolumeRenderWidget::resetCam()
 }
 
 /**
- * @brief update camera view
- * @param dx
- * @param dy
+ * @brief VolumeRenderWidget::updateViewMatrix
  */
-void VolumeRenderWidget::updateView(const float dx, const float dy)
+void VolumeRenderWidget::updateViewMatrix()
 {
-    QVector3D rotAxis = QVector3D(dy, dx, 0.0f).normalized();
-    float angle = QVector2D(dx, dy).length()*500.f;
-    _rotQuat = _rotQuat * QQuaternion::fromAxisAndAngle(rotAxis, -angle);
-
     QMatrix4x4 viewMat;
 //    viewMat.scale(QVector3D(1,1,1./_zScale));
     viewMat.rotate(_rotQuat);
@@ -1008,7 +1077,6 @@ void VolumeRenderWidget::updateView(const float dx, const float dy)
     std::array<float, 16> viewArray;
     for (size_t i = 0; i < viewArray.size(); ++i)
         viewArray.at(i) = viewMat.transposed().constData()[i];
-
     try
     {
         _volumerender.updateView(viewArray);
@@ -1017,6 +1085,19 @@ void VolumeRenderWidget::updateView(const float dx, const float dy)
     {
         qCritical() << e.what();
     }
+}
+
+/**
+ * @brief update camera view
+ * @param dx
+ * @param dy
+ */
+void VolumeRenderWidget::updateView(const float dx, const float dy)
+{
+    QVector3D rotAxis = QVector3D(dy, dx, 0.0f).normalized();
+    float angle = QVector2D(dx, dy).length()*500.f;
+    _rotQuat = _rotQuat * QQuaternion::fromAxisAndAngle(rotAxis, -angle);
+    updateViewMatrix();
     update();
 
     if (_logView)
@@ -1258,6 +1339,7 @@ void VolumeRenderWidget::setShowEss(const bool showEss)
  */
 void VolumeRenderWidget::setBackgroundColor(const QColor col)
 {
+    setEnvironmentMap("");
     std::array<float, 4> color = {{ static_cast<float>(col.redF()),
                                     static_cast<float>(col.greenF()),
                                     static_cast<float>(col.blueF()),
@@ -1402,6 +1484,7 @@ void VolumeRenderWidget::setEnvironmentMap(QString fileName)
     } catch (std::runtime_error e) {
         qWarning() << e.what();
     }
+    this->updateView();
 }
 
 /**
@@ -1409,7 +1492,8 @@ void VolumeRenderWidget::setEnvironmentMap(QString fileName)
  */
 void VolumeRenderWidget::enableRaycast()
 {
-        _volumerender.setTechnique(VolumeRenderCL::TECH_RAYCAST);
+    _volumerender.setTechnique(VolumeRenderCL::TECH_RAYCAST);
+    this->updateView();
 }
 
 /**
@@ -1417,5 +1501,6 @@ void VolumeRenderWidget::enableRaycast()
  */
 void VolumeRenderWidget::enablePathtrace()
 {
-        _volumerender.setTechnique(VolumeRenderCL::TECH_PATHTRACE);
+    _volumerender.setTechnique(VolumeRenderCL::TECH_PATHTRACE);
+    this->updateView();
 }
