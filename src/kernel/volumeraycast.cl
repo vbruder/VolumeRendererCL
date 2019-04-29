@@ -616,23 +616,28 @@ __kernel void volumeRender(  __read_only image3d_t volData
     uint4 taus = initRNG(1);//seed);
     // pseudo random number [0,1] for ray offsets to avoid moire patterns
 //    float rand = trigRNG2(globalId);
-    float rand = (float)(ParallelRNG2(globalId.x, globalId.y)) / (float)(UINT_MAX);
+    float rand = (float)(ParallelRNG3(globalId.x, globalId.y, render.seed)) / (float)(UINT_MAX);
 
     float aspectRatio = native_divide((float)get_global_size(1), (float)(get_global_size(0)));
     aspectRatio = min(aspectRatio, native_divide((float)get_global_size(0), (float)(get_global_size(1))));
     int maxImgSize = max(get_global_size(0), get_global_size(1));
     float2 imgCoords;
-    imgCoords.x = native_divide((globalId.x + 0.5f), convert_float(maxImgSize)) * 2.f;
-    imgCoords.y = native_divide((globalId.y + 0.5f), convert_float(maxImgSize)) * 2.f;
+    imgCoords.x = native_divide((globalId.x), convert_float(maxImgSize)) * 2.f;
+    imgCoords.y = native_divide((globalId.y), convert_float(maxImgSize)) * 2.f;
     // calculate correct offset based on aspect ratio
     imgCoords -= get_global_size(0) > get_global_size(1) ?
                         (float2)(1.0f, aspectRatio) : (float2)(aspectRatio, 1.0);
     imgCoords.y *= -1.f;   // flip y coord
 
+    // random offset inside pixel
+    float2 pixelSize = 2.f / (float2)(get_global_size(0), get_global_size(1));
+    float rand2 = (float)(ParallelRNG3(globalId.y, globalId.x, 2*render.seed)) / (float)(UINT_MAX);
+    imgCoords += (float2)(rand2, -rand)*pixelSize;
+
     // z position of view plane is -1.0 to fit the cube to the screen quad when axes are aligned,
     // zoom is -1 and the data set is uniform in each dimension
     // (with FoV of 90° and near plane in range [-1,+1]).
-    float3 nearPlanePos = fast_normalize((float3)(imgCoords, -1.0f));
+    float3 nearPlanePos = (float3)(imgCoords, -1.0f);
     // transform nearPlane from view space to world space
     float3 rayDir = transformVec3(camera.viewMat, nearPlanePos);
     // camera position in world space (ray origin) is translation vector of view matrix
@@ -670,7 +675,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     }
 
-    if (render.technique == 1) // path tracing
+    // ---- path tracing ----
+    if (render.technique == 1)
     {
         uint random = ParallelRNG3(texCoords.x, texCoords.y, render.seed);
         float3 col = trace_volume(random, camPos, rayDir, tnear, pathtrace.max_extinction,
@@ -692,6 +698,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     }
 
+    // ---- ray casting ----
     float sampleDist = tfar - tnear;
     if (sampleDist <= 0.f)
         return;
@@ -773,7 +780,6 @@ __kernel void volumeRender(  __read_only image3d_t volData
             }
         }
 #endif  // ESS
-
         // standard raycasting loop
         while (t < t_exit)
         {
@@ -884,6 +890,18 @@ __kernel void volumeRender(  __read_only image3d_t volData
     }
     // write final image
     result.w = alpha;
+
+    if (render.iteration == 0)
+    {
+        write_imagef(outAccumulate, texCoords, result);
+    }
+    else
+    {
+        float3 prevCol = read_imagef(inAccumulate, nearestIntSmp, texCoords).xyz;
+        result.xyz = prevCol + (result.xyz - prevCol) / (float3)(render.iteration + 1);
+        write_imagef(outAccumulate, texCoords, result);
+    }
+
     write_imagef(outImg, texCoords, result);
 
     // image order empty space skipping

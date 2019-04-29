@@ -376,6 +376,7 @@ void VolumeRenderWidget::setSequenceStep(QString line)
     {
         int pos = line.lastIndexOf(';');
         _timestep = line.remove(0, pos + 2).toInt();
+        _volumerender.setTimestep(size_t(_timestep));
     }
     else if (line.contains("transferFunction"))
     {
@@ -423,8 +424,8 @@ void VolumeRenderWidget::playInteractionSequence(const QString &fileName, bool r
 void VolumeRenderWidget::setTimeStep(int timestep)
 {
     _timestep = timestep;
+    _volumerender.setTimestep(size_t(timestep));
     update();
-
 	if (_logInteraction)
 	{
 		QString s;
@@ -459,14 +460,12 @@ void VolumeRenderWidget::paintGL()
         {
             if (_useGL)
                 _volumerender.runRaycast(size_t(floor(this->size().width() * _imgSamplingRate)),
-                                         size_t(floor(this->size().height()* _imgSamplingRate)),
-                                         size_t(_timestep));
+                                         size_t(floor(this->size().height()* _imgSamplingRate)));
             else
             {
                 std::vector<float> d;
                 _volumerender.runRaycastNoGL(size_t(floor(this->size().width() * _imgSamplingRate)),
-                                             size_t(floor(this->size().height()* _imgSamplingRate)),
-                                             size_t(_timestep), d);
+                                             size_t(floor(this->size().height()* _imgSamplingRate)), d);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F,
                              int(floor(this->size().width() * _imgSamplingRate)),
                              int(floor(this->size().height()* _imgSamplingRate)),

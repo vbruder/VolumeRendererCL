@@ -44,7 +44,8 @@ void DatRawReader::read_files(const std::string &file_name)
 
     try
     {
-        // we have a dat file where the binary files are specified
+        this->_prop = Properties(); // clear properties
+        // check if we have a dat file where the binary files are specified
         if (file_name.substr(file_name.find_last_of(".") + 1) == "dat")
         {
             _prop.dat_file_name = file_name;

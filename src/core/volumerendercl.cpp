@@ -397,7 +397,9 @@ void VolumeRenderCL::updateSamplingRate(const double samplingRate)
     setRaycastArgs();
 }
 
-
+/**
+ * @brief VolumeRenderCL::setCameraArgs
+ */
 void VolumeRenderCL::setCameraArgs()
 {
     try{
@@ -407,6 +409,9 @@ void VolumeRenderCL::setCameraArgs()
     }
 }
 
+/**
+ * @brief VolumeRenderCL::setRenderingArgs
+ */
 void VolumeRenderCL::setRenderingArgs()
 {
     try{
@@ -416,6 +421,9 @@ void VolumeRenderCL::setRenderingArgs()
     }
 }
 
+/**
+ * @brief VolumeRenderCL::setRaycastArgs
+ */
 void VolumeRenderCL::setRaycastArgs()
 {
     try{
@@ -425,6 +433,9 @@ void VolumeRenderCL::setRaycastArgs()
     }
 }
 
+/**
+ * @brief VolumeRenderCL::setPathtraceArgs
+ */
 void VolumeRenderCL::setPathtraceArgs()
 {
     try{
@@ -434,9 +445,11 @@ void VolumeRenderCL::setPathtraceArgs()
     }
 }
 
+/**
+ * @brief VolumeRenderCL::resetIteration
+ */
 void VolumeRenderCL::resetIteration()
 {
-//    _iteration = 0;
     _rendering_params.iteration = 0;
     setRenderingArgs();
 }
@@ -487,13 +500,13 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
  * @brief VolumeRenderCL::runRaycast
  * @param imgSize
  */
-void VolumeRenderCL::runRaycast(const size_t width, const size_t height, const size_t t)
+void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
 {
     if (!this->_volLoaded)
         return;
     try // opencl scope
     {
-        setMemObjectsRaycast(t);
+        setMemObjectsRaycast(_timestep);
         cl::NDRange globalThreads(width + (LOCAL_SIZE - width % LOCAL_SIZE), height
                                   + (LOCAL_SIZE - height % LOCAL_SIZE));
         cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
@@ -549,14 +562,14 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height, const s
  * @param t
  * @param output
  */
-void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height, const size_t t,
+void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
                                     std::vector<float> &output)
 {
     if (!this->_volLoaded)
         return;
     try // opencl scope
     {
-        setMemObjectsRaycast(t);
+        setMemObjectsRaycast(_timestep);
         cl::NDRange globalThreads(width + (LOCAL_SIZE - width % LOCAL_SIZE),
                                   height + (LOCAL_SIZE - height % LOCAL_SIZE));
         cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
@@ -615,7 +628,7 @@ void VolumeRenderCL::generateBricks()
 
         // set memory object
         cl::ImageFormat format;
-        format.image_channel_order = CL_RG;  // NOTE: CL_RG for min+max
+        format.image_channel_order = CL_RG;  // CL_RG for min+max
 
         if (_dr.properties().format == "UCHAR")
             format.image_channel_data_type = CL_UNORM_INT8;
@@ -1133,3 +1146,15 @@ void VolumeRenderCL::setExtinction(const double extinction)
     setPathtraceArgs();
 }
 
+/**
+ * @brief VolumeRenderCL::setTimestep
+ * @param t
+ */
+void VolumeRenderCL::setTimestep(const size_t t)
+{
+    if (_dr.has_data() && t >= _dr.properties().volume_res.at(3))
+        return;
+
+    this->_timestep = t;
+    resetIteration();
+}

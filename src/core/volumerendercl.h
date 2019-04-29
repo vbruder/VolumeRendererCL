@@ -158,7 +158,7 @@ public:
      * @param height The image height in pixels, used as one dimension of the global thread size.
      * @param t time series id, defaults to 0 if no time series
      */
-     void runRaycast(const size_t width, const size_t height, const size_t t = 0);
+     void runRaycast(const size_t width, const size_t height);
 
      /**
       * @brief Run the actual OpenCL volume raycasting kernel without OpenGL context shring.
@@ -167,8 +167,7 @@ public:
       * @param t time series id, defaults to 0 if no time series
       * @param pixel color output data of the frame
       */
-     void runRaycastNoGL(const size_t width, const size_t height, const size_t t,
-                         std::vector<float> &output);
+     void runRaycastNoGL(const size_t width, const size_t height, std::vector<float> &output);
 
     /**
      * @brief Load volume data from a given .dat file name.
@@ -347,6 +346,12 @@ public:
      */
     void setBBox(float bl_x, float bl_y, float bl_z, float tr_x, float tr_y, float tr_z);
 
+    /**
+     * @brief setTimestep
+     * @param t
+     */
+    void setTimestep(const size_t t);
+
 private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.
@@ -455,6 +460,7 @@ private:
     cl::Image2D _environmentMap;
 
     bool _volLoaded = false;
+    size_t _timestep = 0;
     double _lastExecTime = 0.0;
     std::valarray<float> _modelScale;
     bool _useGL = true;

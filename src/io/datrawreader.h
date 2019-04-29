@@ -32,7 +32,7 @@
 /// </summary>
 struct Properties
 {
-    std::string dat_file_name;
+    std::string dat_file_name = "";
     std::vector<std::string> raw_file_names;
     size_t raw_file_size = 0;
 

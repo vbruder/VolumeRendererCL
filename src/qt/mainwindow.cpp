@@ -287,9 +287,6 @@ void MainWindow::readSettings()
 void MainWindow::setVolumeData(const QString &fileName)
 {
     ui->volumeRenderWidget->setVolumeData(fileName);
-    // TEST: we probably don't need this tff update here
-//    ui->volumeRenderWidget->updateTransferFunction(
-//                ui->transferFunctionEditor->getEditor()->getGradientStops());
     ui->volumeRenderWidget->updateView();
 }
 
@@ -692,8 +689,8 @@ void MainWindow::finishedLoading()
     ui->volumeRenderWidget->setLoadingFinished(true);
     ui->volumeRenderWidget->updateView();
 
-    std::array<double, 256> histo =
-            ui->volumeRenderWidget->getHistogram(static_cast<unsigned int>(ui->sbTimeStep->value()));
+    std::array<double, 256> histo = ui->volumeRenderWidget->getHistogram(0u);
+        // static_cast<unsigned int>(ui->sbTimeStep->value()) // TODO: actual timestep
 
     double maxVal = *std::max_element(histo.begin() + 1, histo.end());
     QVector<qreal> qhisto;
