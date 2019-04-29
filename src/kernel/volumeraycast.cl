@@ -538,6 +538,8 @@ float3 transformVec3(const float16 mat, const float3 vec)
 typedef struct tag_camera_params
 {
     float16 viewMat;
+    float3 bbox_bl;     // bounding box bottom left
+    float3 bbox_tr;     // bounding box top right
     uint ortho;         // bool
 } camera_params;
 
@@ -570,7 +572,6 @@ typedef struct pathtrace_params
 {
     float max_extinction;
 } pathtrace_params;
-
 
 /**
  * ===============================
@@ -659,8 +660,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
     float tnear = FLT_MIN;
     float tfar = FLT_MAX;
     int hit = 0;
-    // bbox from (-1,-1,-1) to (+1,+1,+1)
-    hit = intersectBox(camPos, rayDir, &tnear, &tfar);
+    // uniform bbox from (-1,-1,-1) to (+1,+1,+1)
+    hit = intersectBBox(camPos, rayDir, camera.bbox_bl, camera.bbox_tr, &tnear, &tfar);
     if (!hit || tfar < 0)
     {
         write_imagef(outImg, texCoords, envirCol);

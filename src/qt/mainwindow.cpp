@@ -101,6 +101,7 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::resetCam);
     connect(ui->actionShowOverlay, &QAction::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setShowOverlay);
+//    connect(ui->actionViewClipping, &QAction::toggled, );
     // menu - rendering
     connect(ui->actionLoad_environment_map, &QAction::triggered,
             this, &MainWindow::loadEnvironmentMap);
@@ -169,6 +170,16 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->colorWheel, &colorwidgets::ColorWheel::setColor);
     connect(ui->colorWheel, &colorwidgets::ColorWheel::colorChanged,
             ui->transferFunctionEditor, &TransferFunctionWidget::setColorSelected);
+    // clipping sliders
+    connect(ui->sldClipBack, &QSlider::valueChanged, this, &MainWindow::updateBBox);
+    connect(ui->sldClipBottom, &QSlider::valueChanged, this, &MainWindow::updateBBox);
+    connect(ui->sldClipFront, &QSlider::valueChanged, this, &MainWindow::updateBBox);
+    connect(ui->sldClipLeft, &QSlider::valueChanged, this, &MainWindow::updateBBox);
+    connect(ui->sldClipRight, &QSlider::valueChanged, this, &MainWindow::updateBBox);
+    connect(ui->sldClipTop, &QSlider::valueChanged, this, &MainWindow::updateBBox);
+    connect(ui->pbResetClipping, &QPushButton::pressed, this, &MainWindow::resetBBox);
+    connect(ui->chbClipping, &QCheckBox::toggled, this, &MainWindow::enableClipping);
+    ui->dockClipping->setVisible(false);
 
     ui->statusBar->addPermanentWidget(&_statusLabel);
     connect(ui->volumeRenderWidget, &VolumeRenderWidget::frameSizeChanged,
@@ -668,7 +679,6 @@ void MainWindow::setStatusText()
     _statusLabel.setText(status);
 }
 
-
 /**
  * @brief MainWindow::finishedLoading
  */
@@ -690,8 +700,8 @@ void MainWindow::finishedLoading()
     for (auto &a : histo)
         qhisto.push_back(a / maxVal);   // normalize to range [0,1]
     ui->transferFunctionEditor->setHistogram(qhisto);
+    updateClippingSliders();
 }
-
 
 /**
  * @brief MainWindow::addProgress
@@ -699,11 +709,33 @@ void MainWindow::finishedLoading()
 void MainWindow::addProgress()
 {
     if (_progBar.value() < _progBar.maximum() - 5)
-    {
         _progBar.setValue(_progBar.value() + 1);
-    }
 }
 
+/**
+ * @brief MainWindow::updateClippingSliders
+ */
+void MainWindow::updateClippingSliders()
+{
+    QVector4D volRes = ui->volumeRenderWidget->getVolumeResolution() - QVector4D(1,1,1,0);
+
+    ui->sldClipRight->setMaximum(int(volRes.x()));
+    ui->sbClipRight->setMaximum(int(volRes.x()));
+    ui->sldClipLeft->setMaximum(int(volRes.x()));
+    ui->sbClipLeft->setMaximum(int(volRes.x()));
+    ui->sldClipFront->setMaximum(int(volRes.z()));
+    ui->sbClipFront->setMaximum(int(volRes.z()));
+    ui->sldClipBack->setMaximum(int(volRes.z()));
+    ui->sbClipBack->setMaximum(int(volRes.z()));
+    ui->sldClipBottom->setMaximum(int(volRes.y()));
+    ui->sbClipBottom->setMaximum(int(volRes.y()));
+    ui->sldClipTop->setMaximum(int(volRes.y()));
+    ui->sbClipTop->setMaximum(int(volRes.y()));
+
+    ui->sldClipRight->setValue(ui->sldClipRight->maximum());
+    ui->sldClipBack->setValue(ui->sldClipBack->maximum());
+    ui->sldClipTop->setValue(ui->sldClipTop->maximum());
+}
 
 /**
  * @brief MainWindow::loadTff
@@ -774,7 +806,6 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
         }
     }
 }
-
 
 /**
  * @brief MainWindow::dropEvent
@@ -849,6 +880,12 @@ void MainWindow::showRaycastControls()
     ui->chbContours->setVisible(true);
     ui->chbAmbientOcclusion->setVisible(true);
     ui->chbAerial->setVisible(true);
+    ui->lblSamplingRate->setVisible(true);
+    ui->lblImgSampling->setVisible(true);
+    ui->dsbImgSampling->setVisible(true);
+    ui->lblRaySampling->setVisible(true);
+    ui->dsbSamplingRate->setVisible(true);
+    ui->cbIllum->setVisible(true);
 
     ui->dsbExtinction->setVisible(false);
     ui->lblExtinction->setVisible(false);
@@ -862,7 +899,59 @@ void MainWindow::showPathtraceControls()
     ui->chbContours->setVisible(false);
     ui->chbAmbientOcclusion->setVisible(false);
     ui->chbAerial->setVisible(false);
+    ui->lblSamplingRate->setVisible(false);
+    ui->lblImgSampling->setVisible(false);
+    ui->dsbImgSampling->setVisible(false);
+    ui->lblRaySampling->setVisible(false);
+    ui->dsbSamplingRate->setVisible(false);
+    ui->cbIllum->setVisible(false);
 
     ui->dsbExtinction->setVisible(true);
     ui->lblExtinction->setVisible(true);
+}
+
+/**
+ * @brief MainWindow::updateBBox
+ */
+void MainWindow::updateBBox()
+{
+    QVector3D botLeft(ui->sbClipLeft->value(), ui->sbClipBottom->value(),
+                      ui->sbClipFront->value());
+    QVector3D topRight(ui->sbClipRight->value(), ui->sbClipTop->value(),
+                       ui->sbClipBack->value());
+    if (ui->chbClipping->isChecked())
+        ui->volumeRenderWidget->setBBox(botLeft, topRight);
+}
+
+/**
+ * @brief MainWindow::resetBBox
+ */
+void MainWindow::resetBBox()
+{
+    ui->sldClipLeft->setValue(0);
+    ui->sldClipFront->setValue(0);
+    ui->sldClipBottom->setValue(0);
+    ui->sldClipRight->setValue(ui->sldClipRight->maximum());
+    ui->sldClipTop->setValue(ui->sldClipTop->maximum());
+    ui->sldClipBack->setValue(ui->sldClipBack->maximum());
+    updateBBox();
+}
+
+/**
+ * @brief MainWindow::enableClipping
+ * @param checked
+ */
+void MainWindow::enableClipping(bool checked)
+{
+    if (!checked)
+    {
+        QVector3D maxRes(ui->sldClipRight->maximum(),
+                         ui->sldClipTop->maximum(),
+                         ui->sldClipBack->maximum());
+        ui->volumeRenderWidget->setBBox(QVector3D(0,0,0), maxRes);
+    }
+    else
+    {
+        updateBBox();
+    }
 }

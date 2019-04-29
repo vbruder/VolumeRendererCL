@@ -800,6 +800,25 @@ const std::array<unsigned int, 4> VolumeRenderCL::getResolution() const
 }
 
 /**
+ * @brief VolumeRenderCL::setBBox
+ * @param bl_x  Bottom left x coord
+ * @param bl_y  Bottom left y coord
+ * @param bl_z  Bottom left z coord
+ * @param tr_x  Top right x coord
+ * @param tr_y  Top right y coord
+ * @param tr_z  Top right z coord
+ */
+void VolumeRenderCL::setBBox(float bl_x, float bl_y, float bl_z,
+                             float tr_x, float tr_y, float tr_z)
+{
+    _camera_params.bbox_bl = {{bl_x, bl_y, bl_z}};
+    _camera_params.bbox_tr = {{tr_x, tr_y, tr_z}};
+    setCameraArgs();
+    resetIteration();
+}
+
+
+/**
  * @brief VolumeRenderCL::getHistogram
  * @param timestep
  * @return

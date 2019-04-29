@@ -70,6 +70,7 @@
     <addaction name="actionSettings"/>
     <addaction name="actionShowOverlay"/>
     <addaction name="actionShowStatusBar"/>
+    <addaction name="actionShowClipping"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="title">
@@ -192,16 +193,6 @@
         <string>Rendering</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="5" column="0" colspan="2">
-         <widget class="QRadioButton" name="rbRaycast">
-          <property name="text">
-           <string>Ray casting</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
         <item row="3" column="0" colspan="5">
          <widget class="QComboBox" name="cbIllum">
           <property name="currentIndex">
@@ -239,34 +230,23 @@
           </item>
          </widget>
         </item>
-        <item row="8" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbOrtho">
-          <property name="text">
-           <string>Orthographic</string>
+        <item row="7" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbAmbientOcclusion">
+          <property name="enabled">
+           <bool>true</bool>
           </property>
-         </widget>
-        </item>
-        <item row="0" column="0" colspan="5">
-         <widget class="QLabel" name="label">
           <property name="text">
-           <string>Sampling rate</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="2" colspan="3">
-         <widget class="QRadioButton" name="rbPathtrace">
-          <property name="text">
-           <string>Path tracing</string>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbGradient">
-          <property name="text">
-           <string>Gradient background</string>
+           <string>Ambient occlusion</string>
           </property>
           <property name="checked">
-           <bool>true</bool>
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="0" colspan="2">
+         <widget class="QCheckBox" name="chbContRendering">
+          <property name="text">
+           <string>Continued rendering</string>
           </property>
          </widget>
         </item>
@@ -277,6 +257,20 @@
           </property>
          </widget>
         </item>
+        <item row="8" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbOrtho">
+          <property name="text">
+           <string>Orthographic</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="lblImgSampling">
+          <property name="text">
+           <string>Image</string>
+          </property>
+         </widget>
+        </item>
         <item row="7" column="0" colspan="2">
          <widget class="QCheckBox" name="chbContours">
           <property name="text">
@@ -284,13 +278,6 @@
           </property>
           <property name="checked">
            <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Image</string>
           </property>
          </widget>
         </item>
@@ -320,16 +307,37 @@
           </property>
          </widget>
         </item>
-        <item row="7" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbAmbientOcclusion">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
+        <item row="5" column="2" colspan="3">
+         <widget class="QRadioButton" name="rbPathtrace">
           <property name="text">
-           <string>Ambient occlusion</string>
+           <string>Path tracing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="13" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbGradient">
+          <property name="text">
+           <string>Gradient background</string>
           </property>
           <property name="checked">
            <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QLabel" name="lblRaySampling">
+          <property name="text">
+           <string>Ray</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0" colspan="2">
+         <widget class="QRadioButton" name="rbRaycast">
+          <property name="text">
+           <string>Ray casting</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -349,21 +357,21 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="2">
-         <widget class="QLabel" name="label_4">
+        <item row="0" column="0" colspan="2">
+         <widget class="QLabel" name="lblSamplingRate">
           <property name="text">
-           <string>Ray</string>
+           <string>Sampling rate</string>
           </property>
          </widget>
         </item>
-        <item row="13" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbContRendering">
+        <item row="0" column="2">
+         <widget class="QLabel" name="lblExtinction">
           <property name="text">
-           <string>Continued rendering</string>
+           <string>Extinction</string>
           </property>
          </widget>
         </item>
-        <item row="14" column="2">
+        <item row="0" column="3" colspan="2">
          <widget class="QDoubleSpinBox" name="dsbExtinction">
           <property name="maximum">
            <double>9999.989999999999782</double>
@@ -373,13 +381,6 @@
           </property>
           <property name="value">
            <double>100.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="14" column="1">
-         <widget class="QLabel" name="lblExtinction">
-          <property name="text">
-           <string>Extinction</string>
           </property>
          </widget>
         </item>
@@ -476,6 +477,157 @@
         <string>Reset</string>
        </property>
       </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockClipping">
+   <property name="floating">
+    <bool>true</bool>
+   </property>
+   <property name="windowTitle">
+    <string>Clipping</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QGridLayout" name="gridLayout_5">
+     <item row="0" column="0">
+      <widget class="QCheckBox" name="chbClipping">
+       <property name="text">
+        <string>Enable clipping</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QPushButton" name="pbResetClipping">
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset theme="view-refresh">
+         <normaloff>../../../../VolumeEyeTracking/VolumeEyeTracking/src/qt</normaloff>../../../../VolumeEyeTracking/VolumeEyeTracking/src/qt</iconset>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_7">
+       <property name="text">
+        <string>Left</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QSlider" name="sldClipLeft">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QSpinBox" name="sbClipLeft"/>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_6">
+       <property name="text">
+        <string>Right</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QSlider" name="sldClipRight">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QSpinBox" name="sbClipRight"/>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Front</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QSlider" name="sldClipFront">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QSpinBox" name="sbClipFront"/>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_9">
+       <property name="text">
+        <string>Back</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
+      <widget class="QSlider" name="sldClipBack">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="1">
+      <widget class="QSpinBox" name="sbClipBack"/>
+     </item>
+     <item row="9" column="0">
+      <widget class="QLabel" name="label_10">
+       <property name="text">
+        <string>Bottom</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="0">
+      <widget class="QSlider" name="sldClipBottom">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="1">
+      <widget class="QSpinBox" name="sbClipBottom"/>
+     </item>
+     <item row="11" column="0">
+      <widget class="QLabel" name="label_11">
+       <property name="text">
+        <string>Top</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="0">
+      <widget class="QSlider" name="sldClipTop">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="1">
+      <widget class="QSpinBox" name="sbClipTop"/>
+     </item>
+     <item row="13" column="0">
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </widget>
@@ -730,6 +882,14 @@
     <string>Play interaction sequence...</string>
    </property>
   </action>
+  <action name="actionShowClipping">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Clipping panel</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -783,12 +943,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1193</x>
-     <y>335</y>
+     <x>1207</x>
+     <y>303</y>
     </hint>
     <hint type="destinationlabel">
-     <x>1239</x>
-     <y>341</y>
+     <x>1278</x>
+     <y>307</y>
     </hint>
    </hints>
   </connection>
@@ -799,12 +959,12 @@
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1247</x>
-     <y>329</y>
+     <x>1278</x>
+     <y>307</y>
     </hint>
     <hint type="destinationlabel">
-     <x>1181</x>
-     <y>342</y>
+     <x>1207</x>
+     <y>303</y>
     </hint>
    </hints>
   </connection>
@@ -837,6 +997,214 @@
     <hint type="destinationlabel">
      <x>648</x>
      <y>1069</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionShowClipping</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>dockClipping</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>85</x>
+     <y>538</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldClipLeft</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbClipLeft</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>69</x>
+     <y>102</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>137</x>
+     <y>106</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbClipLeft</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sldClipLeft</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>143</x>
+     <y>94</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>79</x>
+     <y>95</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldClipRight</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbClipRight</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>72</x>
+     <y>146</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>136</x>
+     <y>147</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbClipRight</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sldClipRight</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>140</x>
+     <y>141</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>87</x>
+     <y>140</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldClipFront</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbClipFront</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>98</x>
+     <y>190</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>195</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbClipFront</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sldClipFront</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>144</x>
+     <y>186</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>88</x>
+     <y>186</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldClipBack</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbClipBack</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>89</x>
+     <y>233</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>141</x>
+     <y>237</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbClipBack</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sldClipBack</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>143</x>
+     <y>233</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>97</x>
+     <y>231</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldClipBottom</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbClipBottom</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>68</x>
+     <y>276</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>132</x>
+     <y>278</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbClipBottom</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sldClipBottom</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>142</x>
+     <y>288</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>91</x>
+     <y>285</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sldClipTop</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sbClipTop</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>94</x>
+     <y>322</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>132</x>
+     <y>328</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>sbClipTop</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>sldClipTop</receiver>
+   <slot>setValue(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>143</x>
+     <y>317</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>81</x>
+     <y>325</y>
     </hint>
    </hints>
   </connection>

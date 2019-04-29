@@ -42,6 +42,8 @@ public:
     typedef struct tag_camera_params
     {
         cl_float16 viewMat = {{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}};
+        cl_float3 bbox_bl = {{-1, -1, -1}};
+        cl_float3 bbox_tr = {{ 1,  1,  1}};
         cl_uint ortho = 0;         // bool
     } camera_params;
 
@@ -55,7 +57,7 @@ public:
         cl_uint imgEss = 0;        // bool
         cl_uint showEss = 0;       // bool
         cl_uint useLinear = 1;     // bool
-        cl_uint useGradient = 1;   // bool
+        cl_uint useGradient = 0;   // bool
 
         cl_uint technique = 0;     // ray cast (0) or path tracing (1)
         cl_uint seed = 42;
@@ -333,6 +335,18 @@ public:
      * @param extinction
      */
     void setExtinction(const double extinction);
+
+    /**
+     * @brief setBBox
+     * @param bl_x
+     * @param bl_y
+     * @param bl_z
+     * @param tr_x
+     * @param tr_y
+     * @param tr_z
+     */
+    void setBBox(float bl_x, float bl_y, float bl_z, float tr_x, float tr_y, float tr_z);
+
 private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.
