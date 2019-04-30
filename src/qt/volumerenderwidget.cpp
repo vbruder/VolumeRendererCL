@@ -898,8 +898,8 @@ void VolumeRenderWidget::setRawTransferFunction(std::vector<unsigned char> tff)
  */
 void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
 {
-    const int tffSize = 256;
-    const qreal granularity = 4096.0;
+    const int tffSize = 1024;
+    const qreal granularity = 8192.0;
     std::vector<uchar> tff(tffSize*4, uchar(0));
     std::vector<unsigned int> prefixSum(tffSize);
 
@@ -950,8 +950,8 @@ void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
 
 std::vector<unsigned char> VolumeRenderWidget::getRawTransferFunction(QGradientStops stops) const
 {
-    const size_t tffSize = 256;
-    const qreal granularity = 4096.0;
+    const size_t tffSize = 1024;
+    const qreal granularity = 8192.0;
     std::vector<uchar> tff(tffSize*4);
 
     QPropertyAnimation interpolator;
@@ -1231,6 +1231,10 @@ void VolumeRenderWidget::setCamOrtho(const bool camOrtho)
     this->updateView();
 }
 
+/**
+ * @brief VolumeRenderWidget::setContRendering
+ * @param contRendering
+ */
 void VolumeRenderWidget::setContRendering(const bool contRendering)
 {
     _contRendering = contRendering;

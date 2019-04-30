@@ -560,12 +560,14 @@ typedef struct tag_rendering_params
     uint iteration;
 } rendering_params;
 
-typedef struct __attribute__ ((packed)) tag_raycast_params
+typedef struct tag_raycast_params
 {
     float samplingRate;
     uint useAO;         // bool
     uint contours;      // bool
     uint aerial;        // bool
+
+    float3 brickRes;
 } raycast_params;
 
 typedef struct pathtrace_params
@@ -704,7 +706,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     int3 volRes = get_image_dim(volData).xyz;
     float stepSize = min(sampleDist, sampleDist /
-                            (raycast.samplingRate*length(sampleDist*rayDir*convert_float3(volRes))));
+                          (raycast.samplingRate*length(sampleDist*rayDir*convert_float3(volRes))));
     float samples = ceil(sampleDist/stepSize);
     stepSize = sampleDist/samples;
     float offset = stepSize*rand*0.9f; // offset by 'random' distance to avoid moiré pattern
@@ -726,12 +728,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
 #ifdef ESS
     // 3D DDA initialization
     int3 bricksRes = get_image_dim(volBrickData).xyz;
-    // FIXME: correct if brick res is odd
-//    if ((bricksRes.x & 1) != 0) bricksRes.x -= 1;
-//    if ((bricksRes.y & 1) != 0) bricksRes.y -= 1;
-//    if ((bricksRes.z & 1) != 0) bricksRes.z -= 1;
-
-    float3 brickLen = (float3)(1.f) / convert_float3(bricksRes);
+    float3 brickLen = (float3)(1.f) / raycast.brickRes;    // actual fractal brick resolution
     float3 invRay = 1.f/rayDir;
     int3 step = select(convert_int3(sign(rayDir)), (int3)(1), approxEq3(rayDir, (float3)(0)));
     invRay = select(invRay, (float3)(FLT_MAX), approxEq3(rayDir, (float3)(0.f)));
@@ -756,7 +753,6 @@ __kernel void volumeRender(  __read_only image3d_t volData
     while (t < tfar)
     {
         float2 minMaxDensity = read_imagef(volBrickData, (int4)(cell, 0)).xy;
-
         // increment to next brick
         voxIncr.x = (tv.x <= tv.y) && (tv.x <= tv.z) ? 1 : 0;
         voxIncr.y = (tv.y <= tv.x) && (tv.y <= tv.z) ? 1 : 0;
@@ -771,8 +767,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
         float alphaMax = read_imagef(tffData, linearSmp, minMaxDensity.y).w;
         if (alphaMax < 1e-6f)
         {
-            uint prefixMin = read_imageui(tffPrefix, linearSmp, minMaxDensity.x).x;
-            uint prefixMax = read_imageui(tffPrefix, linearSmp, minMaxDensity.y).x;
+            uint prefixMin = read_imageui(tffPrefix, nearestSmp, minMaxDensity.x).x;
+            uint prefixMax = read_imageui(tffPrefix, nearestSmp, minMaxDensity.y).x;
             if (prefixMin == prefixMax)
             {
                 t = t_exit;
@@ -936,12 +932,11 @@ __kernel void generateBricks(  __read_only image3d_t volData
     int3 voxPerCell = convert_int3(ceil(convert_float4(get_image_dim(volData))/
                                           convert_float4(get_image_dim(volBrickData))).xyz);
     int3 volCoordLower = voxPerCell * coord;
-    int3 volCoordUpper = clamp(volCoordLower + voxPerCell, (int3)(0), get_image_dim(volData).xyz);
+    int3 volCoordUpper = clamp(volCoordLower + voxPerCell, (int3)(0), get_image_dim(volData).xyz-1);
 
     float maxVal = 0.f;
     float minVal = 1.f;
     float value = 0.f;
-
     for (int k = volCoordLower.z; k < volCoordUpper.z; ++k)
     {
         for (int j = volCoordLower.y; j < volCoordUpper.y; ++j)
@@ -954,7 +949,6 @@ __kernel void generateBricks(  __read_only image3d_t volData
             }
         }
     }
-
     write_imagef(volBrickData, (int4)(coord, 0), (float4)(minVal, maxVal, 0, 1.f));
 }
 

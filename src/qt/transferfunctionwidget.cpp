@@ -64,28 +64,20 @@ ShadeWidget::ShadeWidget(ShadeType type, QWidget *parent)
     , _pAlphaGradient(QLinearGradient(0, 0, 0, 0))
 {
     // Checkers background
-    if (_pShadeType == ARGBShade)
-    {
-        QPixmap pm(20, 20);
-        QPainter pmp(&pm);
-        pmp.fillRect(0, 0, 10, 10, Qt::white);
-        pmp.fillRect(10, 10, 10, 10, Qt::white);
-        pmp.fillRect(0, 10, 10, 10, Qt::lightGray);
-        pmp.fillRect(10, 0, 10, 10, Qt::lightGray);
-        pmp.end();
-        QPalette pal = palette();
-        pal.setBrush(backgroundRole(), QBrush(pm));
-        setAutoFillBackground(true);
-        setPalette(pal);
-    }
-    else
-    {
-        setAttribute(Qt::WA_NoBackground);
-    }
+    QPixmap pm(20, 20);
+    QPainter pmp(&pm);
+    pmp.fillRect(0, 0, 10, 10, Qt::white);
+    pmp.fillRect(10, 10, 10, 10, Qt::white);
+    pmp.fillRect(0, 10, 10, 10, Qt::lightGray);
+    pmp.fillRect(10, 0, 10, 10, Qt::lightGray);
+    pmp.end();
+    QPalette pal = palette();
+    pal.setBrush(backgroundRole(), QBrush(pm));
+    setAutoFillBackground(true);
+    setPalette(pal);
 
     QPolygonF points;
-    points << QPointF(0, sizeHint().height())
-           << QPointF(sizeHint().width(), 0);
+    points << QPointF(0, sizeHint().height()) << QPointF(sizeHint().width(), 0);
 
     _pHoverPoints = QSharedPointer<HoverPoints>(new HoverPoints(this, HoverPoints::CircleShape));
     _pHoverPoints->setConnectionType(HoverPoints::LineConnection);
@@ -96,7 +88,6 @@ ShadeWidget::ShadeWidget(ShadeType type, QWidget *parent)
 
     setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
-//    connect(_pHoverPoints.data(), &HoverPoints::pointsChanged, this, &ShadeWidget::colorsChanged);
     connect(_pHoverPoints.data(), &HoverPoints::selectionChanged,
             this, &ShadeWidget::selectedPointChanged);
 }
@@ -160,36 +151,17 @@ void ShadeWidget::generateShade()
 {
     if (_pShade.isNull() || _pShade.size() != size())
     {
-        if (_pShadeType == ARGBShade)
-        {
-            _pShade = QImage(size(), QImage::Format_ARGB32_Premultiplied);
-            _pShade.fill(0);
+        _pShade = QImage(size(), QImage::Format_ARGB32_Premultiplied);
+        _pShade.fill(0);
 
-            QPainter p(&_pShade);
-            p.fillRect(rect(), _pAlphaGradient);
+        QPainter p(&_pShade);
+        p.fillRect(rect(), _pAlphaGradient);
 
-            p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-            QLinearGradient fade(0, 0, 0, height());
-            fade.setColorAt(0, QColor(0, 0, 0, 255));
-            fade.setColorAt(1, QColor(0, 0, 0, 0));
-            p.fillRect(rect(), fade);
-        }
-        else
-        {
-            _pShade = QImage(size(), QImage::Format_RGB32);
-            QLinearGradient shade(0, 0, 0, height());
-            shade.setColorAt(1, Qt::black);
-
-            if (_pShadeType == RedShade)
-                shade.setColorAt(0, Qt::red);
-            else if (_pShadeType == GreenShade)
-                shade.setColorAt(0, Qt::green);
-            else if (_pShadeType == BlueShade)
-                shade.setColorAt(0, Qt::blue);
-
-            QPainter p(&_pShade);
-            p.fillRect(rect(), shade);
-        }
+        p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+        QLinearGradient fade(0, 0, 0, height());
+        fade.setColorAt(0, QColor(0, 0, 0, 255));
+        fade.setColorAt(1, QColor(0, 0, 0, 0));
+        p.fillRect(rect(), fade);
     }
 }
 
@@ -212,7 +184,6 @@ TransferFunctionEditor::TransferFunctionEditor(QWidget *parent) : QWidget(parent
         vbox->addWidget(s);
     }
 
-//    connect(_pAlphaShade, &ShadeWidget::colorsChanged, this, &TransferFunctionEditor::pointsUpdated);
     connect(_pAlphaShade, &ShadeWidget::selectedPointChanged,
             this, &TransferFunctionEditor::selectedPointUpdated);
 }
@@ -256,7 +227,7 @@ void TransferFunctionEditor::pointsUpdated()
     {
         qreal x = int(points.at(i).x());
         qreal y = int(points.at(i).y());
-        if (i + 1 < points.size() && x == points.at(i + 1).x())
+        if (i + 1 < points.size() && qFuzzyCompare(x, points.at(i + 1).x()))
             continue;
         if (x / w > 1)
             return;
@@ -307,7 +278,7 @@ void TransferFunctionEditor::setGradientStops(const QGradientStops &stops)
     {
         qreal pos = stops.at(i).first;
         QRgb color = stops.at(i).second.rgba();
-        points << QPointF(pos * _pAlphaShade->width(), h_alpha - qAlpha(color) * h_alpha / 255);
+        points << QPointF(pos * _pAlphaShade->width(), h_alpha - qAlpha(color) * h_alpha / 255.0);
         colors.push_back(color);
     }
 

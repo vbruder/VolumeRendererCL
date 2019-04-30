@@ -158,6 +158,7 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
                     if (s.find("ObjectFileName") == std::string::npos)
                         _prop.raw_file_names.push_back(s);
                 }
+                _prop.volume_res.at(3) = static_cast<unsigned int>(_prop.raw_file_names.size());
             }
             else if (name.find("Resolution") != std::string::npos && l.size() > 3u)
             {
@@ -192,7 +193,8 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
             {
                 _prop.node_file_name = l.at(1);
             }
-            else if (name.find("TimeSeries") != std::string::npos && l.size() > 1u)
+            else if ((   name.find("TimeSeries") != std::string::npos
+                      || name.find("TimeSteps")  != std::string::npos) && l.size() > 1u)
             {
                 _prop.volume_res.at(3) = static_cast<unsigned int>(std::stoi(l.at(1)));
             }

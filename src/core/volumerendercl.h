@@ -70,6 +70,8 @@ public:
         cl_uint useAO = 0;         // bool
         cl_uint contours = 0;      // bool
         cl_uint aerial = 0;        // bool
+
+        cl_float3 brickRes = {{1,1,1}};
     } raycast_params;
 
     typedef struct tag_pathtrace_params

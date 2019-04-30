@@ -621,15 +621,20 @@ void VolumeRenderCL::generateBricks()
         brickRes.at(1) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(1) / numBricks));
         brickRes.at(2) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(2) / numBricks));
 
+        cl_float3 brickResF = {{_dr.properties().volume_res.at(0) / float(brickRes.at(0)),
+                                _dr.properties().volume_res.at(1) / float(brickRes.at(1)),
+                                _dr.properties().volume_res.at(2) / float(brickRes.at(2))}};
+        _raycast_params.brickRes = brickResF;
+        setRaycastArgs();
+
         std::array<uint, 3> bricksTexSize = {1u, 1u, 1u};
-        bricksTexSize.at(0) = uint(ceil(_dr.properties().volume_res.at(0) / double(brickRes.at(0))));
-        bricksTexSize.at(1) = uint(ceil(_dr.properties().volume_res.at(1) / double(brickRes.at(1))));
-        bricksTexSize.at(2) = uint(ceil(_dr.properties().volume_res.at(2) / double(brickRes.at(2))));
+        bricksTexSize.at(0) = uint(ceil(double(brickResF.x)));
+        bricksTexSize.at(1) = uint(ceil(double(brickResF.y)));
+        bricksTexSize.at(2) = uint(ceil(double(brickResF.z)));
 
         // set memory object
         cl::ImageFormat format;
         format.image_channel_order = CL_RG;  // CL_RG for min+max
-
         if (_dr.properties().format == "UCHAR")
             format.image_channel_data_type = CL_UNORM_INT8;
         else if (_dr.properties().format == "USHORT")
@@ -773,12 +778,12 @@ size_t VolumeRenderCL::loadVolumeData(const std::string &fileName)
     }
 
     // initally, set a simple linear transfer function
-    std::vector<unsigned char> tff(256*4, 0);
+    std::vector<unsigned char> tff(1024*4, 0);
     std::iota(tff.begin() + 3, tff.end(), 0);
     // TODO: testing are there corner cases where this is necessary?
 //    setTransferFunction(tff);
 
-    std::vector<unsigned int> prefixSum(256, 0);
+    std::vector<unsigned int> prefixSum(1024, 0);
 #pragma omp for
     for (int i = 0; i < static_cast<int>(prefixSum.size()); ++i)
         prefixSum.at(static_cast<unsigned int>(i)) = static_cast<unsigned int>(i)*4u;
