@@ -265,12 +265,12 @@ inline static void endswap(T *objp)
  * @param dataset
  * @return minimum
  */
-static float getMaximum(const std::vector<char> &dataset)
+static float getMaximumUshort(const std::vector<unsigned short> &dataset)
 {
     float maximum = std::numeric_limits<float>::min();
     #pragma omp parallel for reduction(max:maximum)
     for (size_t i = 0; i < dataset.size(); ++i)
-        maximum = std::max(maximum, float(static_cast<unsigned char>(dataset.at(i))));
+        maximum = std::max(maximum, float(dataset.at(i)));
     return maximum;
 }
 
@@ -345,7 +345,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             for (size_t i = 0; i < floatdata.size(); ++i)
             {
                 floatdata.at(i) /= maximum;
-                size_t bin = static_cast<size_t>(round(floatdata.at(i) * 256.f));
+                size_t bin = static_cast<size_t>(round(floatdata.at(i) * 255.f));
                 bin = std::min(bin, 255ul);
                 histo[bin]++;
                 char *memp = reinterpret_cast<char*>(&floatdata.at(i));
@@ -359,17 +359,37 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
                       << "]" << std::endl;
         }
-        else    // UCHAR and USHORT should be ok
+        else if (_prop.format == "UCHAR")   // UCHAR should be little endian
         {
             is.read(reinterpret_cast<char*>(raw_timestep.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
-            _prop.min_value = 0.f;      // getMinimum();
-            _prop.max_value = 255.f;    // getMaximum();
+            _prop.min_value = 0.f;
+            _prop.max_value = 255.f;
             #pragma omp parallel for reduction(+:histo)
             for (size_t i = 0; i < raw_timestep.size(); ++i)
             {
                 float value = float(static_cast<unsigned char>(raw_timestep.at(i)));
                 histo[size_t(std::clamp(value, 0.f, 255.f))]++;
+            }
+        }
+        else if (_prop.format == "USHORT")  // USHORT should be little endian
+        {
+            std::vector<unsigned short> ushortdata(_prop.raw_file_size / sizeof(unsigned short));
+            is.read(reinterpret_cast<char*>(ushortdata.data()),
+                    static_cast<std::streamsize>(_prop.raw_file_size));
+            _prop.min_value = 0.f;      // getMinimum(raw_timestep);
+            _prop.max_value = getMaximumUshort(ushortdata);
+            std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
+                      << "]" << std::endl;
+            #pragma omp parallel for reduction(+:histo)
+            for (size_t i = 0; i < ushortdata.size(); ++i)
+            {
+                float stretch = std::numeric_limits<unsigned short>::max()/float(_prop.max_value);
+                ushortdata.at(i) = static_cast<unsigned short>(round(ushortdata.at(i)*stretch));
+                histo[size_t(std::clamp(ushortdata.at(i)/256.f, 0.f, 255.f))]++;
+                char *memp = reinterpret_cast<char*>(&ushortdata.at(i));
+                for (size_t j = 0; j < 2; ++j)
+                    raw_timestep.at(i*2 + j) = (*(memp + j));
             }
         }
 

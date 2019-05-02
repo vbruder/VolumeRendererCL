@@ -396,9 +396,7 @@ float calcAO(float3 n, uint4 *taus, image3d_t volData, float3 pos, float stepSiz
 /**
  * volume tracing
  */
-
-float get_extinction(const float max_extinction,
-                     const float3 pos,
+float get_extinction(const float3 pos,
                      read_only image3d_t vol)
 {
     float4 samplePos = (float4)(pos * 0.5f + 0.5f, 1.f);
@@ -427,7 +425,7 @@ bool sample_interaction(uint rand,
         pos = *ray_pos + ray_dir * t;
         if (!in_volume(pos))
             return false;
-        sample = get_extinction(max_extinction, pos, vol);
+        sample = get_extinction(pos, vol);
         color = read_imagef(tff, linearSmp, sample);
         if (cnt > 512)  // TODO: variable or based on data set resolution
             return false;
@@ -728,6 +726,9 @@ __kernel void volumeRender(  __read_only image3d_t volData
 #ifdef ESS
     // 3D DDA initialization
     int3 bricksRes = get_image_dim(volBrickData).xyz;
+//        if ((bricksRes.x & 1) != 0) bricksRes.x -= 1;
+//        if ((bricksRes.y & 1) != 0) bricksRes.y -= 1;
+//        if ((bricksRes.z & 1) != 0) bricksRes.z -= 1;
     float3 brickLen = (float3)(1.f) / raycast.brickRes;    // actual fractal brick resolution
     float3 invRay = 1.f/rayDir;
     int3 step = select(convert_int3(sign(rayDir)), (int3)(1), approxEq3(rayDir, (float3)(0)));
