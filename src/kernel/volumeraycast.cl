@@ -34,49 +34,49 @@ constant sampler_t nearestSmp = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_CLAMP |
 constant sampler_t nearestIntSmp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP |
                                    CLK_FILTER_NEAREST;
 
-// init random number generator (hybrid tausworthy)
+// init random number generator (hybrid ui_randworthy)
 uint4 initRNG(uint seed)
 {
-    uint4 taus;
-    taus.x = 128U + (uint)(get_global_size(0));
-    taus.y = 128U + (uint)(get_global_size(1));
-    taus.z = 128U + (uint)(seed);
-    taus.w = 128U + (uint)(get_global_size(0) * get_global_size(1) * seed);
-    return taus;
+    uint4 ui_rand;
+    ui_rand.x = 128U + (uint)(get_global_size(0));
+    ui_rand.y = 128U + (uint)(get_global_size(1));
+    ui_rand.z = 128U + (uint)(seed);
+    ui_rand.w = 128U + (uint)(get_global_size(0) * get_global_size(1) * seed);
+    return ui_rand;
 }
 
 // S1, S2, S3, and M are all constants, and z is part of the
 // private per-thread generator state.
-uint tausStep(uint4 *taus, uint p, int s1, int s2, int s3, uint m)
+uint ui_randStep(uint4 *ui_rand, uint p, int s1, int s2, int s3, uint m)
 {
-    uint4 loc = *taus;
+    uint4 loc = *ui_rand;
     uint locZ;
     if (p == 0) locZ = loc.x;
     if (p == 1) locZ = loc.y;
     if (p == 2) locZ = loc.z;
     uint b = (((locZ << (uint)(s1)) ^ locZ) >> (uint)(s2));
     locZ = (((locZ & m) << (uint)(s3)) ^ b);
-    if (p == 0) *taus = (uint4)(locZ, loc.yzw);
-    if (p == 1) *taus = (uint4)(loc.x, locZ, loc.zw);
-    if (p == 2) *taus = (uint4)(loc.xy, locZ, loc.w);
+    if (p == 0) *ui_rand = (uint4)(locZ, loc.yzw);
+    if (p == 1) *ui_rand = (uint4)(loc.x, locZ, loc.zw);
+    if (p == 2) *ui_rand = (uint4)(loc.xy, locZ, loc.w);
     return locZ;
 }
 
 // A and C are constants
-uint lcgStep(uint4 *taus, uint a, uint c)
+uint lcgStep(uint4 *ui_rand, uint a, uint c)
 {
-    uint4 loc = *taus;
-    *taus = (uint4)(loc.xyz, a*loc.w + c);
+    uint4 loc = *ui_rand;
+    *ui_rand = (uint4)(loc.xyz, a*loc.w + c);
     return loc.w;
 }
 
-float hybridTaus(uint4 *taus)
+float hybridui_rand(uint4 *ui_rand)
 {
     // Combined period is lcm(p1,p2,p3,p4)~ 2^121
-    return 2.3283064365387e-10 * (float)(tausStep(taus, 0, 13, 19, 12, 4294967294U) ^  // p1=2^31-1
-                                         tausStep(taus, 1, 2, 25, 4, 4294967288U)   ^  // p2=2^30-1
-                                         tausStep(taus, 2, 3, 11, 17, 4294967280U)  ^  // p3=2^28-1
-                                         lcgStep(taus, 1664525U, 1013904223U));        // p4=2^32
+    return 2.3283064365387e-10 * (float)(ui_randStep(ui_rand, 0, 13, 19, 12, 4294967294U) ^  // p1=2^31-1
+                                         ui_randStep(ui_rand, 1, 2, 25, 4, 4294967288U)   ^  // p2=2^30-1
+                                         ui_randStep(ui_rand, 2, 3, 11, 17, 4294967280U)  ^  // p3=2^28-1
+                                         lcgStep(ui_rand, 1664525U, 1013904223U));        // p4=2^32
 }
 
 // comparison of floats
@@ -350,10 +350,10 @@ bool checkBoundingCell(int3 cell, int3 volRes, int size)
 }
 
 // Uniform Sampling of the hemisphere above the normal n
-float3 getUniformRandomSampleDirectionUpper(const float3 n, uint4 *taus)
+float3 getUniformRandomSampleDirectionUpper(const float3 n, uint4 *ui_rand)
 {
-    float z = (hybridTaus(taus) * 2.f) - 1.f;
-    float phi = hybridTaus(taus) * 2.f * M_PI_F;
+    float z = (hybridui_rand(ui_rand) * 2.f) - 1.f;
+    float phi = hybridui_rand(ui_rand) * 2.f * M_PI_F;
 
     float3 sampleDirection = (float3)(sqrt(1.f - z*z) * sin(phi), sqrt(1.f - z*z) * cos(phi), z);
     float cosTheta = dot(n, sampleDirection);
@@ -364,8 +364,8 @@ float3 getUniformRandomSampleDirectionUpper(const float3 n, uint4 *taus)
 }
 
 
-// Calculate ambient occlusion factor with monte carlo sampling
-float calcAO(float3 n, uint4 *taus, image3d_t volData, float3 pos, float stepSize, float r,
+// Calculate object space ambient occlusion factor with monte carlo sampling
+float calcAO(float3 n, uint4 *ui_rand, image3d_t volData, float3 pos, float stepSize, float r,
              image1d_t tff)
 {
     float ao = 0.f;
@@ -373,7 +373,7 @@ float calcAO(float3 n, uint4 *taus, image3d_t volData, float3 pos, float stepSiz
     // rays
     for (int i = 0; i < rays; ++i)
     {
-        float3 dir = getUniformRandomSampleDirectionUpper(n, taus);
+        float3 dir = getUniformRandomSampleDirectionUpper(n, ui_rand);
         float sample = 0.f;
         int cnt = 0;
         while (cnt*stepSize < r)
@@ -489,7 +489,9 @@ float3 trace_volume(uint rand,
         {
             float3 ray_dir_scatter = get_dir_phase_function(rand);
             float3 ray_pos_scatter = ray_pos;
-            sample_interaction(rand, &ray_pos_scatter, ray_dir_scatter, max_extinction, vol, tff, &color);
+            float4 scatterColor = backgroundColor;
+            sample_interaction(rand, &ray_pos_scatter, ray_dir_scatter, max_extinction, vol, tff, &scatterColor);
+            color = mix(color, scatterColor, 0.5f);
         }
         // shadow ray towards point light
         float4 colorShadow = backgroundColor;
@@ -599,23 +601,8 @@ __kernel void volumeRender(  __read_only image3d_t volData
         return;
     int2 texCoords = globalId;
 
-    local uint hits;
-    if (render.imgEss)
-    {
-        hits = 0;
-        uint4 lastHit = getLastHit(inHitImg, (int2)(get_group_id(0), get_group_id(1)));
-        if (!lastHit.x)
-        {
-            write_imagef(outImg, texCoords, render.showEss ? (float4)(1.f) - render.backgroundColor
-                                                           : render.backgroundColor);
-            write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
-            return;
-        }
-    }
-
-    uint4 taus = initRNG(1);//seed);
     // pseudo random number [0,1] for ray offsets to avoid moire patterns
-//    float rand = trigRNG2(globalId);
+    uint4 ui_rand = ParallelRNG3(globalId.x, globalId.y, render.seed); //initRNG(1);
     float rand = (float)(ParallelRNG3(globalId.x, globalId.y, render.seed)) / (float)(UINT_MAX);
 
     float aspectRatio = native_divide((float)get_global_size(1), (float)(get_global_size(0)));
@@ -629,7 +616,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                         (float2)(1.0f, aspectRatio) : (float2)(aspectRatio, 1.0);
     imgCoords.y *= -1.f;   // flip y coord
 
-    // random offset inside pixel
+    // jitter ray starting position inside pixel
     float2 pixelSize = 2.f / (float2)(get_global_size(0), get_global_size(1));
     float rand2 = (float)(ParallelRNG3(globalId.y, globalId.x, 2*render.seed)) / (float)(UINT_MAX);
     imgCoords += (float2)(rand2, -rand)*pixelSize;
@@ -661,6 +648,20 @@ __kernel void volumeRender(  __read_only image3d_t volData
     envirCol *= render.useGradient ? (float4)(0.7f + 0.5f * rayDir.y) : 1.f;
     if (get_image_dim(environment).x > 1)
         envirCol = read_imagef(environment, linearSmp, get_environment_coords(rayDir));
+
+    // image order ess
+    local uint hits;
+    if (render.imgEss)
+    {
+        hits = 0;
+        uint4 lastHit = getLastHit(inHitImg, (int2)(get_group_id(0), get_group_id(1)));
+        if (!lastHit.x)
+        {
+            write_imagef(outImg, texCoords, render.showEss ? (float4)(1.f) - envirCol : envirCol);
+            write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
+            return;
+        }
+    }
 
     float tnear = FLT_MIN;
     float tfar = FLT_MAX;
@@ -711,7 +712,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
 
     // raycast parameters
     tnear = max(0.f, tnear);    // clamp to near plane
-    float4 result = render.backgroundColor;
+    float4 result = envirCol;
     float alpha = 0.f;
     float3 pos = (float3)(0);
     float density = 0.f;
@@ -844,7 +845,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                     tfColor.w = read_imagef(tffData, linearSmp, density).w;
                 }
             }
-            tfColor.xyz = render.backgroundColor.xyz - tfColor.xyz;
+            tfColor.xyz = envirCol.xyz - tfColor.xyz;
             if (raycast.aerial) // depth cue as aerial perspective
             {
                 float depthCue = 1.f - (t - tnear)/sampleDist; // [0..1]
@@ -862,7 +863,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
                 if (raycast.useAO)  // ambient occlusion only on solid surfaces
                 {
                     float3 n = -gradientCentralDiff(volData, (float4)(pos, 1.f)).xyz;
-                    float ao = calcAO(n, &taus, volData, pos, length(voxLen)*0.9f, length(voxLen)*5.f, tffData);
+                    float ao = calcAO(n, &ui_rand, volData, pos, length(voxLen)*0.9f, length(voxLen)*5.f, tffData);
                     result.xyz *= 1.f - 0.5f*ao;
                 }
                 break;
@@ -887,7 +888,6 @@ __kernel void volumeRender(  __read_only image3d_t volData
     }
     // write final image
     result.w = alpha;
-
     if (render.iteration == 0)
     {
         write_imagef(outAccumulate, texCoords, result);
@@ -898,14 +898,13 @@ __kernel void volumeRender(  __read_only image3d_t volData
         result.xyz = prevCol + (result.xyz - prevCol) / (float3)(render.iteration + 1);
         write_imagef(outAccumulate, texCoords, result);
     }
-
     write_imagef(outImg, texCoords, result);
 
     // image order empty space skipping
     if (render.imgEss)
     {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (any(result.xyz != render.backgroundColor.xyz))
+        if (any(result.xyz != envirCol.xyz))
             ++hits;
         barrier(CLK_LOCAL_MEM_FENCE);
         if (get_local_id(0) + get_local_id(1) == 0)
