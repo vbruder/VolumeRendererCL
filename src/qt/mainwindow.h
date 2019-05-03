@@ -79,6 +79,7 @@ protected slots:
     void resetBBox();
     void updateBBox();
     void enableClipping(bool checked);
+    void updateHistogram();
 protected:
     void dragEnterEvent(QDragEnterEvent *ev) Q_DECL_OVERRIDE;
     void dropEvent(QDropEvent *ev) Q_DECL_OVERRIDE;

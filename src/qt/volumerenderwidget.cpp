@@ -804,9 +804,7 @@ void VolumeRenderWidget::setVolumeData(const QString &fileName)
     {
         qCritical() << e.what();
     }
-    if (timesteps > 1)
-        emit timeSeriesLoaded(static_cast<int>(timesteps - 1));
-
+    emit timeSeriesLoaded(static_cast<int>(timesteps - 1));
     _overlayModelMX.setToIdentity();
     QVector3D res = getVolumeResolution().toVector3D();
     _overlayModelMX.scale(res / qMax(res.x(), qMax(res.y(), res.z())));

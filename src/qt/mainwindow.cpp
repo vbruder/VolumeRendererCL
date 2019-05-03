@@ -170,6 +170,8 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->colorWheel, &colorwidgets::ColorWheel::setColor);
     connect(ui->colorWheel, &colorwidgets::ColorWheel::colorChanged,
             ui->transferFunctionEditor, &TransferFunctionWidget::setColorSelected);
+    connect(ui->cbLog, &QCheckBox::toggled, this, &MainWindow::updateHistogram);
+    connect(ui->sldTimeStep, &QSlider::valueChanged, this, &MainWindow::updateHistogram);
     // clipping sliders
     connect(ui->sldClipBack, &QSlider::valueChanged, this, &MainWindow::updateBBox);
     connect(ui->sldClipBottom, &QSlider::valueChanged, this, &MainWindow::updateBBox);
@@ -677,6 +679,28 @@ void MainWindow::setStatusText()
 }
 
 /**
+ * @brief MainWindow::updateHistogram
+ */
+void MainWindow::updateHistogram()
+{
+    unsigned int t = 0u;
+    if (ui->volumeRenderWidget->getVolumeResolution().w() > 1)
+            t = static_cast<unsigned int>(ui->sbTimeStep->value());
+    std::array<double, 256> histo = ui->volumeRenderWidget->getHistogram(t);
+    double maxVal = *std::max_element(histo.begin() + 1, histo.end());
+    double minVal = *std::min_element(histo.begin() + 1, histo.end());
+    QVector<qreal> qhisto;
+    for (auto &a : histo)
+    {
+        if (ui->cbLog->isChecked())
+            qhisto.push_back(log(a - minVal) / log(maxVal));
+        else
+            qhisto.push_back(a / maxVal);
+    }
+    ui->transferFunctionEditor->setHistogram(qhisto); // normalized to range [0,1]
+}
+
+/**
  * @brief MainWindow::finishedLoading
  */
 void MainWindow::finishedLoading()
@@ -684,19 +708,10 @@ void MainWindow::finishedLoading()
     _progBar.setValue(100);
     _progBar.hide();
     _timer.stop();
-//    qDebug() << "finished.";
     this->setStatusText();
     ui->volumeRenderWidget->setLoadingFinished(true);
     ui->volumeRenderWidget->updateView();
-
-    std::array<double, 256> histo = ui->volumeRenderWidget->getHistogram(0u);
-        // static_cast<unsigned int>(ui->sbTimeStep->value()) // TODO: actual timestep
-
-    double maxVal = *std::max_element(histo.begin() + 1, histo.end());
-    QVector<qreal> qhisto;
-    for (auto &a : histo)
-        qhisto.push_back(a / maxVal);   // normalize to range [0,1]
-    ui->transferFunctionEditor->setHistogram(qhisto);
+    updateHistogram();
     updateClippingSliders();
 }
 
