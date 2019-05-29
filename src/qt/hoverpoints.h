@@ -154,6 +154,10 @@ private:
     QPen m_pointPen;
     QBrush m_pointBrush;
     QPen m_connectionPen;
+    QBrush m_curveBrush = QBrush(QColor(255, 255, 255, 0));
+
+    QPen m_histoPen = QPen(QBrush(QColor(49, 54, 59)), 1.5);
+    QBrush m_histoBrush = QBrush(QColor(100, 100, 100, 100));
     QVector<qreal> m_histogram;
 };
 
