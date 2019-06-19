@@ -2,13 +2,24 @@
 
 An interactive, cross platform volume renderer (ray caster and path tracer) based on the OpenCL compute API.
 It features early ray termination, object order and image order empty space skipping, local illumination, and various gradient based shading techniques.
+The rederer is designed to run on the GPU in single node environments.
+Execution on CPU is possible but not recommended due to severe performance issues.
 
-The code is structured in five parts:
-- *kernel*: OpenCL parallel volume rendering kernel
+The code is structured in the following parts:
+- *kernel*: OpenCL C parallel volume rendering kernel
 - *core*: C++ interface to volume rendering kernel
-- *oclutils*: utilities for setting up OpenCL
+- *oclutils*: utilities for setting up OpenCL and OpenCL-OpenGL interop
 - *io*: volume data file reader (at the moment only dat/raw format)
-- *qt*: GUI containing OpenGL screen quad rendering, interaction, transfer function editor, color picker, parameter controls... 
+- *qt*: everything GUI related: OpenGL screen quad rendering, mouse/keyboard interaction, transfer function editor, color picker, parameter controls, histogram rendering... 
+
+# Dependencies / Requirements #
+
+- [Qt](https://www.qt.io) 5.10 or later for the GUI.
+- [CMake](https://cmake.org) 3.9 or later for building.
+- C++14 compiler
+- OpenCL 1.2 (capable device & drivers, headers, [C++ bindings](https://github.com/KhronosGroup/OpenCL-CLHPP/releases))
+- OpenGL for dispaying the texture generated with OpenCL
+- OpenMP 4 (recommended for faster loading/initialization)
 
 # Volume data #
 
@@ -26,14 +37,6 @@ Format: 		UCHAR
 The `ObjectFileName` may contain multiple paths to different time steps.
 Alternatively, `Resolution` may be extended with a fourth dimension if the raw file names of the timesteps contain a suffix with ascending numbering.
 Currently supported formats are: `UCHAR`, `USHORT`, and `FLOAT`
-
-# Dependencies / Requirements #
-
-- [Qt](https://www.qt.io) 5.10 or later for the GUI.
-- [CMake](https://cmake.org) 3.9 or later for building.
-- C++14 compiler
-- OpenCL 1.2 (capable device & drivers, headers, [C++ bindings](https://github.com/KhronosGroup/OpenCL-CLHPP/releases))
-- OpenGL for dispaying the texture generated with OpenCL
 
 # Setup and build #
 
