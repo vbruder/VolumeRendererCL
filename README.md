@@ -2,21 +2,45 @@
 
 An interactive, cross platform volume renderer (ray caster and path tracer) based on the OpenCL compute API.
 It features early ray termination, object order and image order empty space skipping, local illumination, and various gradient based shading techniques.
-It can display volume (timeseries) data sets and uses the [Qt](https://www.qt.io) framework for the GUI. 
+
+The code is structured in five parts:
+- *kernel* OpenCL parallel volume rendering kernel
+- *core* C++ interface to volume rendering kernel
+- *oclutils* utilities for setting up OpenCL
+- *io* volume data file reader (at the moment only dat/raw format)
+- *qt* GUI containing OpenGL screen quad rendering, interaction, transfer function editor, color picker, parameter controls... 
+
+# Volume data #
+
+The renderer can display volume (timeseries) data sets.
+An excellent resource for those is Pavol Klacansky's [Open Scientific Visualization Datasets](https://klacansky.com/open-scivis-datasets/) page.
+For data loading you should create and select a .dat file containing a description of the raw (binary) volume data following this scheme:
+
+```
+ObjectFileName: 	relative/path/to/binaryData.raw
+Resolution: 		256 256 256 
+SliceThickness:		1.0 1.0 1.0
+Format: 		UCHAR
+```
+
+The `ObjectFileName` may contain multiple paths to different time steps.
+Alternatively, `Resolution` may be extended with a fourth dimension if the raw file names of the timesteps contain a suffix with ascending numbering.
+Currently supported formats are: `UCHAR`, `USHORT`, and `FLOAT`
+
+# Dependencies / Requirements #
+
+- [Qt](https://www.qt.io) 5.10 or later for the GUI.
+- [CMake](https://cmake.org) 3.9 or later for building.
+- C++14 compiler
+- OpenCL 1.2 (capable device & drivers, headers, [C++ bindings](https://github.com/KhronosGroup/OpenCL-CLHPP/releases))
+- OpenGL for dispaying the texture generated with OpenCL
 
 # Setup and build #
 
-To compile the code you need:
-
-* An OpenCL 1.2 capable device and drivers/libraries with image support. It is recommended to update your GPU driver before building/running.
-* Qt version 5.6 or higher.
-* A C++14 compiler.
-* CMake version 3.9 or higher.
-
-Use CMake to build the volume rasycaster:
+Use CMake to build the volume renderer:
 ```
-git clone https://theVall@bitbucket.org/theVall/basicvolumeraycaster.git
-cd basicvolumeraycaster
+git clone https://github.com/vbruder/VolumeRendererCL.git
+cd VolumeRendererCL
 mkdir build
 cd build
 cmake .. -DCMAKE_PREFIX_PATH=/path/to/Qt/install
@@ -28,7 +52,7 @@ Make sure to replace the CMAKE_PREFIX_PATH with the path to your Qt install dire
 
 * NVIDIA Maxwell & Pascal, AMD Fiji & Vega, Intel Gen9 GPU & Skylake CPU
 * GCC 5.3.1 & 7.4.0, Visual Studio 2015 (v140), Clang 6.0
-* Qt 5.9.7 & 5.11.2 & 5.12.2
+* Qt 5.11.2 & 5.12.2
 * CMake 3.10.2 & 3.12.2
 
 # Screenshots #
