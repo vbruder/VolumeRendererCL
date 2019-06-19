@@ -4,11 +4,11 @@ An interactive, cross platform volume renderer (ray caster and path tracer) base
 It features early ray termination, object order and image order empty space skipping, local illumination, and various gradient based shading techniques.
 
 The code is structured in five parts:
-- *kernel* OpenCL parallel volume rendering kernel
-- *core* C++ interface to volume rendering kernel
-- *oclutils* utilities for setting up OpenCL
-- *io* volume data file reader (at the moment only dat/raw format)
-- *qt* GUI containing OpenGL screen quad rendering, interaction, transfer function editor, color picker, parameter controls... 
+- *kernel*: OpenCL parallel volume rendering kernel
+- *core*: C++ interface to volume rendering kernel
+- *oclutils*: utilities for setting up OpenCL
+- *io*: volume data file reader (at the moment only dat/raw format)
+- *qt*: GUI containing OpenGL screen quad rendering, interaction, transfer function editor, color picker, parameter controls... 
 
 # Volume data #
 
