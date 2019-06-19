@@ -1,8 +1,8 @@
 # Description #
 
 An interactive, cross platform volume renderer (ray caster and path tracer) based on the OpenCL compute API.
-It features early ray termination, object order and image order empty space skipping, local illumination, and various gradient based shading techniques.
-The rederer is designed to run on the GPU in single node environments.
+It features early ray termination, object order (and image order) empty space skipping, local illumination, and various gradient based shading techniques.
+The rederer is designed to run interactive on the GPU in single node environments.
 Execution on CPU is possible but not recommended due to severe performance issues.
 
 The code is structured in the following parts:
@@ -12,9 +12,9 @@ The code is structured in the following parts:
 - *io*: volume data file reader (at the moment only dat/raw format)
 - *qt*: everything GUI related: OpenGL screen quad rendering, mouse/keyboard interaction, transfer function editor, color picker, parameter controls, histogram rendering... 
 
-This renderer is primarily used for as a basis for my research projects.
-Therefore, the code may be lacking documentation, automated testing, and portability.
-However, I try to write/keep clean and understandable code and test on different systems.
+This renderer is primarily used as a basis for my [research projects](https://vbruder.github.io).
+Therefore, the code is partly lacking documentation, automated testing, and portability.
+However, I'm trying to write clean and understandable code as well as testing on different systems.
 
 ## Dependencies / Requirements ##
 
@@ -57,7 +57,7 @@ Make sure to replace the CMAKE_PREFIX_PATH with the path to your Qt install dire
 
 ## Sytem and hardware ##
 
-Currently, I develop and test on an Ubuntu 18.04 based Linux using GCC 7.4.0 and an NVIDIA Titan X (Pascal).
+Currently, I develop and test on an Ubuntu 18.04 based Linux using GCC 7.4.0, the latest stable version of Qt and an NVIDIA Titan X (Pascal).
 Sporadically, I try to also test on a Windows 10 system using the Visual Studio 17 compiler and an AMD Vega FE, as well as on my integrated Intel Gen9 GPU (NEO driver stack).
 
 Systems/hardware I successfully ran this renderer on: 
