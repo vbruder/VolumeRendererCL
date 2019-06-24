@@ -328,6 +328,13 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
 //        float minimum = std::numeric_limits<float>::max();
         float maximum = std::numeric_limits<float>::min();
 
+        // assume UCHAR if no format is given
+        if (_prop.format.empty())
+        {
+            std::cout << "WARNING: Format could not be determined, assuming UCHAR" << std::endl;
+            _prop.format = "UCHAR";
+        }
+
         // if float precision: change endianness to little endian
         if (_prop.format == "FLOAT")
         {
@@ -448,11 +455,6 @@ void DatRawReader::infer_volume_resolution(unsigned long long file_size)
 {
     std::cout << "WARNING: Trying to infer volume resolution from data size, assuming equal dimensions."
               << std::endl;
-    if (_prop.format.empty())
-    {
-        std::cout << "WARNING: Format could not be determined, assuming UCHAR" << std::endl;
-        _prop.format = "UCHAR";
-    }
 
     if (_prop.format == "UCHAR")
         file_size /= sizeof(unsigned char);

@@ -37,6 +37,7 @@
 #include <QComboBox>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QInputDialog>
 
 /**
  * @brief MainWindow::MainWindow
@@ -808,7 +809,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
             if (!url.fileName().isEmpty())
             {
                 QFileInfo finf(url.fileName());
-                if (finf.suffix() == "dat")
+                if (finf.suffix() == "dat" || finf.suffix() == "raw" )
                     valid = true;
             }
         }
@@ -817,6 +818,24 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
             ev->acceptProposedAction();
         }
     }
+}
+
+/**
+ * @brief Try to infer volume resolution by using the cube root.
+ * @param file_size File size in bit.
+ * @param format Data precision (UCHAR, USHORT or FLOAT).
+ * @return The inferred value.
+ */
+int infer_volume_resolution(qint64 file_size, QString format)
+{
+    if (format == "USHORT")
+        file_size /= sizeof(unsigned short);
+    else if (format == "FLOAT")
+        file_size /= sizeof(float);
+    else // (format == "UCHAR")
+        file_size /= sizeof(unsigned char); // default
+
+    return static_cast<int>(std::cbrt(file_size));
 }
 
 /**
@@ -832,7 +851,27 @@ void MainWindow::dropEvent(QDropEvent *ev)
         {
             // extract path
             QString fileName = url.path();
-            qDebug() << "Loading volume data file" << fileName;
+            qInfo() << "Loading volume data file" << fileName;
+            readVolumeFile(fileName);
+        }
+        else if (finf.suffix() == "raw")
+        {
+            QString fileName = url.path();
+
+            bool ok;
+            QStringList items;
+            items << tr("UCHAR") << tr("USHORT") << tr("FLOAT");
+            QString format = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
+                                                     tr("Format:"), items, 0, false, &ok);
+            int inferredValue = infer_volume_resolution(QFile(fileName).size(), format);
+            int x = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
+                                         tr("Resolution in X:"), 1, inferredValue, 9999, 1, &ok);
+            int y = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
+                                         tr("Resolution in Y:"), 1, inferredValue, 9999, 1, &ok);
+            int z = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
+                                         tr("Resolution in Z:"), 1, inferredValue, 9999, 1, &ok);
+
+            // TODO: use dialog values
             readVolumeFile(fileName);
         }
     }
