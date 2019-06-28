@@ -75,10 +75,6 @@ Systems/hardware I successfully ran this renderer on:
 
 ![2019-05-02-backpack](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-05-02-backpack.png)
 
-## Planned changes/extensions ##
-
-*  Out of core rendering for timeseries data on dGPUs.
-
 ## License ##
 
 Copyright (C) 2017-2019 Valentin Bruder vbruder@gmail.com
