@@ -457,10 +457,10 @@ void MainWindow::saveCamState()
  */
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this, "About Volume Raycaster",
+    QMessageBox::about(this, "About VolumeRendererCL",
     "<b>OpenCL Volume Renderer</b><br><br>\
     Check out the \
-    <a href='https://bitbucket.org/theVall/basicvolumeraycaster/overview'>Bitbucket repository</a> \
+    <a href='https://github.com/vbruder/VolumeRendererCL'>GitHub repository</a> \
     for more information.<br><br>\
     Copyright 2017-2019 Valentin Bruder. All rights reserved. <br><br>\
     The program is provided AS IS with NO WARRANTY OF ANY KIND, \

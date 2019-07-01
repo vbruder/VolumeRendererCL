@@ -31,6 +31,8 @@
 #include <valarray>
 #include <random>
 
+typedef unsigned int uint;
+
 /**
  * @brief The volume renderer class based on OpenCL.
  */
@@ -317,7 +319,7 @@ public:
      * @brief Create an environment map and add as kernel argument.
      * @param file_name
      */
-    void createEnvironmentMap(const char *file_name);
+    void createEnvironmentMap(const std::string &file_name);
 
     /**
      * @brief setUseGradient

@@ -11,7 +11,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Volume Raycaster</string>
+   <string>VolumeRendererCL</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../../../../homepage/homepage/public/img/icon.png</normaloff>../../../../homepage/homepage/public/img/icon.png</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout_3">

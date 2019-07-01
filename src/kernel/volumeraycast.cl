@@ -535,12 +535,18 @@ float3 transformVec3(const float16 mat, const float3 vec)
 }
 
 // structs
-typedef struct tag_camera_params
+//
+// HACK: Windows only works with packed camera struct
+#ifdef WIN32
+    typedef struct __attribute__ ((packed)) tag_camera_params
+#else
+    typedef struct tag_camera_params
+#endif // WIN32
 {
     float16 viewMat;
-    float3 bbox_bl;     // bounding box bottom left
-    float3 bbox_tr;     // bounding box top right
-    uint ortho;         // bool
+    float3 bbox_bl  __attribute__ ((packed));     // bounding box bottom left
+    float3 bbox_tr  __attribute__ ((packed));     // bounding box top right
+    uint ortho __attribute__ ((packed));         // bool
 } camera_params;
 
 typedef struct tag_rendering_params
@@ -570,7 +576,7 @@ typedef struct tag_raycast_params
     float3 brickRes;
 } raycast_params;
 
-typedef struct pathtrace_params
+typedef struct tag_pathtrace_params
 {
     float max_extinction;
 } pathtrace_params;

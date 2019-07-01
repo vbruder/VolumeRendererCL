@@ -1507,7 +1507,7 @@ void VolumeRenderWidget::reloadKernels()
 void VolumeRenderWidget::setEnvironmentMap(QString fileName)
 {
     try {
-        _volumerender.createEnvironmentMap(fileName.toStdString().c_str());
+        _volumerender.createEnvironmentMap(fileName.toStdString());
     } catch (std::runtime_error e) {
         qWarning() << e.what();
     }

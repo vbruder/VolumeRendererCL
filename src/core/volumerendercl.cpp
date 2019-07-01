@@ -145,7 +145,7 @@ void VolumeRenderCL::initialize(bool useGL, bool useCPU, cl_vendor vendor,
     }
 
 #ifdef _WIN32
-    initKernel("kernels//volumeraycast.cl", "-DCL_STD=CL1.2 -DESS");
+    initKernel("kernels//volumeraycast.cl", "-DCL_STD=CL1.2 -DESS -DWIN32");
 #else
     initKernel("kernels/volumeraycast.cl", "-DCL_STD=CL1.2 -DESS");
 #endif // _WIN32
@@ -170,8 +170,7 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
     {
         cl::Program program = buildProgramFromSource(_contextCL, fileName, buildFlags);
         _raycastKernel = cl::Kernel(program, "volumeRender");
-        const char* c = "";
-        createEnvironmentMap(c);
+        createEnvironmentMap("");
 
         // parameter
         setCameraArgs();
@@ -998,7 +997,7 @@ void VolumeRenderCL::setObjEss(bool useEss)
 {
     std::string ess = useEss ? "-DESS" : "";
 #ifdef _WIN32
-    initKernel("kernels//volumeraycast.cl", "-DCL_STD=CL1.2 " + ess);
+    initKernel("kernels//volumeraycast.cl", "-DCL_STD=CL1.2 -DWIN32 " + ess);
 #else
     initKernel("kernels/volumeraycast.cl", "-DCL_STD=CL1.2 " + ess);
 #endif // _WIN32
@@ -1111,14 +1110,14 @@ const std::string VolumeRenderCL::getCurrentDeviceName()
  * @brief VolumeRenderCL::createEnvironmentMap
  * @param file_name
  */
-void VolumeRenderCL::createEnvironmentMap(const char *file_name)
+void VolumeRenderCL::createEnvironmentMap(const std::string &file_name)
 {
     unsigned int width = 2048;
     unsigned int height = 1024;
     cl::ImageFormat format;
     format.image_channel_order = CL_RGBA;
     format.image_channel_data_type = CL_FLOAT;
-    if (strlen(file_name) == 0) // initialize with white
+    if (file_name.empty()) // initialize with white
     {
         cl_float4 d = {{1,1,1,1}};
         _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY, format, 1, 1, 0, &d);
@@ -1126,7 +1125,7 @@ void VolumeRenderCL::createEnvironmentMap(const char *file_name)
     else
     {
         float *pixels;
-        if (!load_hdr_float4(&pixels, &width, &height, file_name))
+        if (!load_hdr_float4(&pixels, &width, &height, file_name.c_str()))
             throw std::runtime_error("Error loading environment map file.");
         _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                       format, width, height, 0, pixels);
