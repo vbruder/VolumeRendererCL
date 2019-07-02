@@ -23,10 +23,10 @@ However, I'm trying to write clean and understandable code as well as testing on
 
 - [Qt](https://www.qt.io) 5.12 or later for the GUI.
 - [CMake](https://cmake.org) 3.9 or later for building.
-- C++14 compiler
+- C++17 compiler
 - OpenCL 1.2 (capable device & drivers, headers, [C++ bindings](https://github.com/KhronosGroup/OpenCL-CLHPP/releases))
 - OpenGL for dispaying the texture generated with OpenCL
-- OpenMP 4 (recommended for faster loading/initialization)
+- OpenMP (recommended for faster data loading times)
 
 ## Volume data ##
 
@@ -65,7 +65,7 @@ Sporadically, I try to also test on a Windows 10 system using the Visual Studio 
 
 Systems/hardware I successfully ran this renderer on: 
 * NVIDIA Maxwell & Pascal, AMD Fiji & Vega, Intel Gen9 GPU & Skylake CPU
-* GCC 5.3.1 & 7.4.0, Visual Studio 2017 (v140), Clang 6.0
+* GCC 7.4.0, Visual Studio 2017 (v140), Clang 6.0
 * Qt 5.12.2 & Qt 5.13.0
 * CMake 3.10.2 & 3.12.2
 
