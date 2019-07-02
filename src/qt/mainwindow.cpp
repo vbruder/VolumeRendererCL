@@ -21,7 +21,6 @@
  */
 
 #include "src/qt/mainwindow.h"
-#include "ui_mainwindow.h"
 
 #include <QFileDialog>
 #include <QMessageBox>
@@ -123,10 +122,10 @@ MainWindow::MainWindow(QWidget *parent) :
     _watcher = new QFutureWatcher<void>(this);
     connect(_watcher, &QFutureWatcher<void>::finished, this, &MainWindow::finishedLoading);
     // loading progress bar
-    _progBar.setRange(0, 100);
+    _progBar.setRange(0, 0);
     _progBar.setTextVisible(true);
     _progBar.setAlignment(Qt::AlignCenter);
-    connect(&_timer, &QTimer::timeout, this, &MainWindow::addProgress);
+    //connect(&_timer, &QTimer::timeout, this, &MainWindow::addProgress);
 
     // settings UI
     connect(ui->dsbSamplingRate, 
@@ -287,9 +286,9 @@ void MainWindow::readSettings()
  * @brief MainWindow::setVolumeData
  * @param fileName
  */
-void MainWindow::setVolumeData(const QString &fileName)
+void MainWindow::setVolumeData(const DatRawReader::Properties volumeFileProps)
 {
-    ui->volumeRenderWidget->setVolumeData(fileName);
+    ui->volumeRenderWidget->setVolumeData(volumeFileProps);
     ui->volumeRenderWidget->updateView();
 }
 
@@ -468,33 +467,97 @@ void MainWindow::showAboutDialog()
     FOR A PARTICULAR PURPOSE.");
 }
 
+
+/**
+ * @brief Try to infer volume resolution by using the cube root.
+ * @param file_size File size in bit.
+ * @param format Data precision (UCHAR, USHORT or FLOAT).
+ * @return The inferred value.
+ */
+int infer_volume_resolution(qint64 &file_size, const std::string &format)
+{
+    if (format == "USHORT")
+        file_size /= sizeof(unsigned short);
+    else if (format == "FLOAT")
+        file_size /= sizeof(float);
+    else // (format == "UCHAR")
+        file_size /= sizeof(unsigned char); // default
+
+    return static_cast<int>(std::cbrt(file_size));
+}
+
+/**
+ * @brief MainWindow::showVolumePropertyDialog
+ * @param fileName Name of the selected file.
+ */
+DatRawReader::Properties MainWindow::showVolumePropertyDialog(const QString &fileName)
+{
+    DatRawReader::Properties p;
+
+    bool ok;
+    QStringList items;
+    items << tr("UCHAR") << tr("USHORT") << tr("FLOAT");
+    p.format = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
+                                     tr("Format:"), items, 0, false, &ok).toStdString();
+    qint64 fileSize = QFile(fileName).size();
+    int inferredValue = infer_volume_resolution(fileSize, p.format);
+    p.volume_res.at(0) = uint(QInputDialog::getInt(this, tr("Volume resolution in x direction"),
+                                 tr("Resolution in X:"), 1, inferredValue, 9999, 1, &ok));
+    p.volume_res.at(1) = uint(QInputDialog::getInt(this, tr("Volume resolution in y direction"),
+                                 tr("Resolution in Y:"), 1, int(p.volume_res.at(0)), 9999, 1, &ok));
+    p.volume_res.at(2) = uint(QInputDialog::getInt(this, tr("Volume resolution in z direction"),
+                                 tr("Resolution in Z:"), 1,
+                                 int(fileSize/p.volume_res.at(0)/p.volume_res.at(1)), 9999, 1, &ok));
+
+    p.slice_thickness.at(0) = QInputDialog::getDouble(this, tr("Slice thickness in x direction"),
+                                    tr("Slice thickness in X:"), 1.0, 0.0, 100.0, 6, &ok);
+    p.slice_thickness.at(1) = QInputDialog::getDouble(this, tr("Slice thickness in y direction"),
+                                 tr("Slice thickness in Y:"), p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
+    p.slice_thickness.at(2) = QInputDialog::getDouble(this, tr("Slice thickness in z direction"),
+                                 tr("Slice thickness in Z:"), p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
+    return p;
+}
+
 /**
  * @brief MainWindow::readVolumeFile
  * @param fileName
  * @return
  */
-bool MainWindow::readVolumeFile(const QString &fileName)
+bool MainWindow::readVolumeFile(const QUrl &url)
 {
-    ui->volumeRenderWidget->setLoadingFinished(false);
-    _progBar.setFormat("Loading volume file: " + fileName);
-    _progBar.setValue(1);
-    _progBar.show();
-    ui->statusBar->addPermanentWidget(&_progBar, 2);
-    ui->statusBar->updateGeometry();
-    QApplication::processEvents();
-
+    QFileInfo finf(url.fileName());
+    QString fileName = url.path();
     if (fileName.isEmpty())
     {
         _progBar.deleteLater();
         throw std::invalid_argument("Invalid volume data file name.");
     }
+    qInfo() << "Loading volume data file" << fileName;
+
+    DatRawReader::Properties volumeFileProps;
+    if (finf.suffix() == "raw")
+    {
+        volumeFileProps = showVolumePropertyDialog(fileName);
+        volumeFileProps.raw_file_names.push_back(fileName.toStdString());
+    }
     else
     {
-        _fileName = fileName;
-        QFuture<void> future = QtConcurrent::run(this, &MainWindow::setVolumeData, fileName);
-        _watcher->setFuture(future);
-        _timer.start(100);
+        volumeFileProps.dat_file_name = fileName.toStdString();
     }
+
+    ui->volumeRenderWidget->setLoadingFinished(false);
+    _progBar.setFormat("Loading volume file: " + fileName);
+   // _progBar.setValue(1);
+    _progBar.show();
+    ui->statusBar->addPermanentWidget(&_progBar, 2);
+    ui->statusBar->updateGeometry();
+    QApplication::processEvents();
+
+    _fileName = fileName;
+    QFuture<void> future = QtConcurrent::run(this, &MainWindow::setVolumeData, volumeFileProps);
+    _watcher->setFuture(future);
+    _timer.start(100);
+
     return true;
 }
 
@@ -706,7 +769,7 @@ void MainWindow::updateHistogram()
  */
 void MainWindow::finishedLoading()
 {
-    _progBar.setValue(100);
+    //_progBar.setValue(100);
     _progBar.hide();
     _timer.stop();
     this->setStatusText();
@@ -777,7 +840,7 @@ void MainWindow::openVolumeFile()
     QString defaultPath = _settings->value( "LastVolumeFile" ).toString();
     QString pickedFile = dialog.getOpenFileName(
                 this, tr("Open Volume Data"), defaultPath,
-                tr("Volume data files (*.dat);; All files (*)"));
+                tr("Volume data files (*.dat); Volume raw files (*.raw); All files (*)"));
     if (!pickedFile.isEmpty())
     {
         if (!readVolumeFile(pickedFile))
@@ -821,60 +884,13 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
 }
 
 /**
- * @brief Try to infer volume resolution by using the cube root.
- * @param file_size File size in bit.
- * @param format Data precision (UCHAR, USHORT or FLOAT).
- * @return The inferred value.
- */
-int infer_volume_resolution(qint64 file_size, QString format)
-{
-    if (format == "USHORT")
-        file_size /= sizeof(unsigned short);
-    else if (format == "FLOAT")
-        file_size /= sizeof(float);
-    else // (format == "UCHAR")
-        file_size /= sizeof(unsigned char); // default
-
-    return static_cast<int>(std::cbrt(file_size));
-}
-
-/**
  * @brief MainWindow::dropEvent
  * @param ev
  */
 void MainWindow::dropEvent(QDropEvent *ev)
 {
     foreach(QUrl url, ev->mimeData()->urls())
-    {
-        QFileInfo finf(url.fileName());
-        if (finf.suffix() == "dat")
-        {
-            // extract path
-            QString fileName = url.path();
-            qInfo() << "Loading volume data file" << fileName;
-            readVolumeFile(fileName);
-        }
-        else if (finf.suffix() == "raw")
-        {
-            QString fileName = url.path();
-
-            bool ok;
-            QStringList items;
-            items << tr("UCHAR") << tr("USHORT") << tr("FLOAT");
-            QString format = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
-                                                     tr("Format:"), items, 0, false, &ok);
-            int inferredValue = infer_volume_resolution(QFile(fileName).size(), format);
-            int x = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
-                                         tr("Resolution in X:"), 1, inferredValue, 9999, 1, &ok);
-            int y = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
-                                         tr("Resolution in Y:"), 1, inferredValue, 9999, 1, &ok);
-            int z = QInputDialog::getInt(this, tr("QInputDialog::getInteger()"),
-                                         tr("Resolution in Z:"), 1, inferredValue, 9999, 1, &ok);
-
-            // TODO: use dialog values
-            readVolumeFile(fileName);
-        }
-    }
+        readVolumeFile(url);
 }
 
 /**

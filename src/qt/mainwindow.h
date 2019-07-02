@@ -1,17 +1,9 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
-
-#include <QMainWindow>
-#include <QSettings>
-#include <QFileDialog>
-#include <QDragEnterEvent>
-#include <QDropEvent>
 /**
  * \file
  *
  * \author Valentin Bruder
  *
- * \copyright Copyright (C) 2018 Valentin Bruder
+ * \copyright Copyright (C) 2018-2019 Valentin Bruder
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -30,6 +22,11 @@
 
 #pragma once
 
+#include <QMainWindow>
+#include <QSettings>
+#include <QFileDialog>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QMimeData>
 #include <QFutureWatcher>
 #include <QProgressBar>
@@ -39,6 +36,8 @@
 #include <QLabel>
 #include <QSettings>
 #include <QVector4D>
+
+#include "ui_mainwindow.h"
 
 namespace Ui {
 class MainWindow;
@@ -87,10 +86,11 @@ protected:
     void keyPressEvent(QKeyEvent *event) Q_DECL_OVERRIDE;
     void showEvent(QShowEvent *event) Q_DECL_OVERRIDE;
 
+    DatRawReader::Properties showVolumePropertyDialog(const QString &filename);
 private:
 
-    void setVolumeData(const QString &fileName);
-    bool readVolumeFile(const QString &fileName);
+    void setVolumeData(const DatRawReader::Properties volumeFileProps);
+    bool readVolumeFile(const QUrl &url);
 
     void readTff(const QString &fileName);
 
@@ -107,9 +107,7 @@ private:
     QFutureWatcher<void> *_watcher;
     QProgressBar _progBar;
     QTimer _timer;
-    QString _fileName;
+    QString _fileName = "";
     QLabel _statusLabel;
     QTimer _loopTimer;
 };
-
-#endif // MAINWINDOW_H

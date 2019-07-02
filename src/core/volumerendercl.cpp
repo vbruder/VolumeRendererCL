@@ -758,13 +758,19 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
  * @brief VolumeRenderCL::loadVolumeData
  * @param fileName
  */
-size_t VolumeRenderCL::loadVolumeData(const std::string &fileName)
+size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeFileProps)
 {
     this->_volLoaded = false;
-    std::cout << "Loading volume data defined in " << fileName << std::endl;
+
+    if (volumeFileProps.dat_file_name.empty())
+        std::cerr << "Loading raw volume data from " << volumeFileProps.raw_file_names.at(0)
+                  << std::endl;
+    else
+        std::cout << "Loading volume data defined in " << volumeFileProps.dat_file_name << std::endl;
+
     try
     {
-        _dr.read_files(fileName);
+        _dr.read_files(volumeFileProps);
         std::cout << _dr.data().front().size()*_dr.data().size() << " bytes have been read from "
                   << _dr.data().size() << " file(s)." << std::endl;
         std::cout << _dr.properties().to_string() << std::endl;

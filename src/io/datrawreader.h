@@ -28,42 +28,6 @@
 #include <limits>
 
 /// <summary>
-/// The Properties struct that can hold .dat and .raw file information.
-/// </summary>
-struct Properties
-{
-    std::string dat_file_name = "";
-    std::vector<std::string> raw_file_names;
-    size_t raw_file_size = 0;
-
-    std::array<unsigned int, 4> volume_res = {{0, 0, 0, 1}};     // x, y, z, t
-    std::array<double, 3> slice_thickness = {{1.0, 1.0, 1.0}};
-    std::string format = "";     // UCHAR, USHORT, FLOAT
-    std::string node_file_name = "";
-    std::string image_channel_order = "R";
-    unsigned int time_series = {1u};
-    // data range for float normalization: TODO: add to kernel
-    float min_value = std::numeric_limits<float>::max();
-    float max_value = std::numeric_limits<float>::min();
-
-    const std::string to_string() const
-    {
-        std::string str("Resolution: ");
-        for (auto v : volume_res)
-        {
-            str += std::to_string(v) + " ";
-        }
-        str += "| Slice Thickness: ";
-        for (auto v : slice_thickness)
-        {
-            str += std::to_string(v) + " ";
-        }
-        str += "| Format: " + format + " " + image_channel_order;
-        return str;
-    }
-};
-
-/// <summary>
 /// Dat-raw volume data file reader.
 /// Based on a description in a text file ".dat", raw voxel data is read from a
 /// binary file ".raw". The dat-file should contain information on the file name of the
@@ -73,8 +37,42 @@ struct Properties
 /// </summary>
 class DatRawReader
 {
-
 public:
+    /// <summary>
+    /// The Properties struct that can hold .dat and .raw file information.
+    /// </summary>
+    struct Properties
+    {
+        std::string dat_file_name = "";
+        std::vector<std::string> raw_file_names;
+        size_t raw_file_size = 0;
+
+        std::array<unsigned int, 4> volume_res = {{0, 0, 0, 1}};     // x, y, z, t
+        std::array<double, 3> slice_thickness = {{1.0, 1.0, 1.0}};
+        std::string format = "";     // UCHAR, USHORT, FLOAT
+        std::string node_file_name = "";
+        std::string image_channel_order = "R";
+        unsigned int time_series = {1u};
+        // data range for float normalization: TODO: add to kernel
+        float min_value = std::numeric_limits<float>::max();
+        float max_value = std::numeric_limits<float>::min();
+
+        const std::string to_string() const
+        {
+            std::string str("Resolution: ");
+            for (auto v : volume_res)
+            {
+                str += std::to_string(v) + " ";
+            }
+            str += "| Slice Thickness: ";
+            for (auto v : slice_thickness)
+            {
+                str += std::to_string(v) + " ";
+            }
+            str += "| Format: " + format + " " + image_channel_order;
+            return str;
+        }
+    };
 
     /// <summary>
     /// Read the dat file of the given name and based on the content, the raw data.
@@ -84,7 +82,7 @@ public:
     /// <param name="raw_data">Reference to a vector where the read raw data
     /// is stored in.</param>
     /// <throws>If one of the files could not be found or read.</throws
-    void read_files(const std::string &dat_file_name);
+    void read_files(Properties volume_properties);
 
     /// <summary>
     /// Get the read status of hte objects.

@@ -68,7 +68,7 @@ public:
 
     void setupVertexAttribs();
 
-    void setVolumeData(const QString &fileName);
+    void setVolumeData(const DatRawReader::Properties volumeFileProps);
 
     bool hasData() const;
 

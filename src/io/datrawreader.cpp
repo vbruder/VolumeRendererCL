@@ -41,27 +41,26 @@ typedef unsigned char uchar;
 /*
  * DatRawReader::read_files
  */
-void DatRawReader::read_files(const std::string &file_name)
+void DatRawReader::read_files(Properties volume_properties)
 {
     // check file
-    if (file_name.empty())
+    if (volume_properties.dat_file_name.empty() && volume_properties.raw_file_names.empty())
         throw std::invalid_argument("File name must not be empty.");
 
     try
     {
-        this->_prop = Properties(); // clear properties
+        this->_prop = volume_properties;
         // check if we have a dat file where the binary files are specified
-        if (file_name.substr(file_name.find_last_of(".") + 1) == "dat")
+        if (volume_properties.raw_file_names.empty())
         {
-            _prop.dat_file_name = file_name;
             this->read_dat(_prop.dat_file_name);
         }
-        else    // we only have the raw binary file
-        {
-            _prop.raw_file_names.clear();
-            std::cout << "Trying to read binary data directly from " << file_name << std::endl;
-            this->_prop.raw_file_names.push_back(file_name);
-        }
+//        else    // we only have the raw binary file
+//        {
+//            _prop.raw_file_names.clear();
+//            std::cout << "Trying to read binary data directly from " << file_name << std::endl;
+//            this->_prop.raw_file_names.push_back(file_name);
+//        }
         this->_raw_data.clear();
         this->_histograms.clear();
         for (size_t i = 0; i < _prop.raw_file_names.size(); ++i)
@@ -102,7 +101,7 @@ const std::vector<std::vector<char> > & DatRawReader::data() const
  * @brief DatRawReader::properties
  * @return
  */
-const Properties &DatRawReader::properties() const
+const DatRawReader::Properties &DatRawReader::properties() const
 {
     if (!has_data())
     {

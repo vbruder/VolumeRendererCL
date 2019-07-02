@@ -793,13 +793,13 @@ void VolumeRenderWidget::setupVertexAttribs()
  * @brief VolumeRenderWidget::setVolumeData
  * @param fileName
  */
-void VolumeRenderWidget::setVolumeData(const QString &fileName)
+void VolumeRenderWidget::setVolumeData(const DatRawReader::Properties volumeFileProps)
 {
     this->_noUpdate = true;
     size_t timesteps = 0;
     try
     {
-        timesteps = _volumerender.loadVolumeData(fileName.toStdString());
+        timesteps = _volumerender.loadVolumeData(volumeFileProps);
     }
     catch (std::invalid_argument e)
     {

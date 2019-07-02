@@ -39,8 +39,7 @@ typedef unsigned int uint;
 class VolumeRenderCL
 {
 public:
-
-    // structs
+    // OpenCL kernel structs
     typedef struct tag_camera_params
     {
         cl_float16 viewMat = {{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}};
@@ -178,7 +177,7 @@ public:
      * @param fileName The full path to the volume data file.
      * @return number of loaded volume time steps
      */
-    size_t loadVolumeData(const std::string &fileName);
+    size_t loadVolumeData(const DatRawReader::Properties volumeFileProps);
 
     /**
      * @brief Answers if volume data has been loaded.
