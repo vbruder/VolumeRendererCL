@@ -31,7 +31,12 @@
 #include <iterator>
 #include <cassert>
 #include <math.h>
+#include <chrono>
+
+// OpenMP 3.1 is required (_OPENMP >= 201107) for parallel reductions with min/max.
 #include <omp.h>
+
+typedef unsigned char uchar;
 
 /*
  * DatRawReader::read_files
@@ -253,6 +258,9 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
     }
 }
 
+/**
+ * Swap the endianness.
+ */
 template <class T>
 inline static void endswap(T *objp)
 {
@@ -268,7 +276,9 @@ inline static void endswap(T *objp)
 static float getMaximumUshort(const std::vector<unsigned short> &dataset)
 {
     float maximum = std::numeric_limits<float>::min();
+#if _OPENMP >= 201107
     #pragma omp parallel for reduction(max:maximum)
+#endif
     for (size_t i = 0; i < dataset.size(); ++i)
         maximum = std::max(maximum, float(dataset.at(i)));
     return maximum;
@@ -282,7 +292,9 @@ static float getMaximumUshort(const std::vector<unsigned short> &dataset)
 static float getMinimum(const std::vector<char> &dataset)
 {
     float minimum = std::numeric_limits<float>::max();
+#if _OPENMP >= 201107
     #pragma omp parallel for reduction(min:minimum)
+#endif
     for (size_t i = 0; i < dataset.size(); ++i)
         minimum = std::min(minimum, float(static_cast<unsigned char>(dataset.at(i))));
     return minimum;
@@ -312,12 +324,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
     {
         // get length of file:
         is.seekg(0, is.end);
-//#ifdef _WIN32
-//        // HACK: to support files bigger than 2048 MB on windows -> fixed with VS 2017?
-//        _prop.raw_file_size = *(__int64 *)(((char *)&(is.tellg())) + 8);
-//#else
         _prop.raw_file_size = static_cast<size_t>(is.tellg());
-//#endif
         is.seekg(0, is.beg);
 
         // read data as a block:
@@ -341,14 +348,18 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             std::vector<float> floatdata(_prop.raw_file_size / sizeof(float));
             is.read(reinterpret_cast<char*>(floatdata.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
+#if _OPENMP >= 201107
             #pragma omp parallel for reduction(max:maximum)
+#endif
             for (size_t i = 0; i < floatdata.size(); ++i)
             {
                 endswap(&floatdata.at(i)); // swap endianness to little endian
                 maximum = std::max(maximum, floatdata.at(i));
             }
             _prop.max_value = maximum;
+#if _OPENMP >= 201107
             #pragma omp parallel for reduction(+:histo)
+#endif
             for (size_t i = 0; i < floatdata.size(); ++i)
             {
                 floatdata.at(i) /= maximum;
@@ -357,7 +368,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
                 histo[bin]++;
                 char *memp = reinterpret_cast<char*>(&floatdata.at(i));
                 for (size_t j = 0; j < 4; ++j)
-                    raw_timestep.at(i*4 + j) = (*(memp + j));
+                    raw_timestep[i*4 + j] = (*(memp + j));
             }
 //            #pragma omp parallel for reduction(min:minimum)
 //            for (size_t i = 0; i < floatdata.size(); ++i)
@@ -372,10 +383,12 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
                     static_cast<std::streamsize>(_prop.raw_file_size));
             _prop.min_value = 0.f;
             _prop.max_value = 255.f;
+#if _OPENMP >= 201107
             #pragma omp parallel for reduction(+:histo)
+#endif
             for (size_t i = 0; i < raw_timestep.size(); ++i)
             {
-                float value = float(static_cast<unsigned char>(raw_timestep.at(i)));
+                float value = float(uchar(raw_timestep[i]));
                 histo[size_t(std::clamp(value, 0.f, 255.f))]++;
             }
         }
@@ -388,7 +401,9 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             _prop.max_value = getMaximumUshort(ushortdata);
             std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
                       << "]" << std::endl;
+#if _OPENMP >= 201107
             #pragma omp parallel for reduction(+:histo)
+#endif
             for (size_t i = 0; i < ushortdata.size(); ++i)
             {
                 float stretch = std::numeric_limits<unsigned short>::max()/float(_prop.max_value);
@@ -396,7 +411,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
                 histo[size_t(std::clamp(ushortdata.at(i)/256.f, 0.f, 255.f))]++;
                 char *memp = reinterpret_cast<char*>(&ushortdata.at(i));
                 for (size_t j = 0; j < 2; ++j)
-                    raw_timestep.at(i*2 + j) = (*(memp + j));
+                    raw_timestep[i*2 + j] = (*(memp + j));
             }
         }
 

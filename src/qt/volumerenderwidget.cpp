@@ -913,14 +913,14 @@ void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
         interpolator.setKeyValueAt(stop.first, stop.second);
 
 #pragma omp for
-    for (uint i = 0; i < tffSize; ++i)
+    for (int i = 0; i < int(tffSize); ++i)
     {
         interpolator.setCurrentTime(qRound(double(i)/double(tffSize) * granularity));
-        tff.at(i*4 + 0) = uchar(qMax(0, interpolator.currentValue().value<QColor>().red()   - 3));
-        tff.at(i*4 + 1) = uchar(qMax(0, interpolator.currentValue().value<QColor>().green() - 3));
-        tff.at(i*4 + 2) = uchar(qMax(0, interpolator.currentValue().value<QColor>().blue()  - 3));
-        tff.at(i*4 + 3) = uchar(qMax(0, interpolator.currentValue().value<QColor>().alpha() - 3));
-        prefixSum.at(i) = tff.at(i*4 + 3);
+        tff.at(size_t(i)*4 + 0) = uchar(qMax(0, interpolator.currentValue().value<QColor>().red()  -3));
+        tff.at(size_t(i)*4 + 1) = uchar(qMax(0, interpolator.currentValue().value<QColor>().green()-3));
+        tff.at(size_t(i)*4 + 2) = uchar(qMax(0, interpolator.currentValue().value<QColor>().blue() -3));
+        tff.at(size_t(i)*4 + 3) = uchar(qMax(0, interpolator.currentValue().value<QColor>().alpha()-3));
+        prefixSum.at(size_t(i)) = tff.at(size_t(i)*4 + 3);
     }
 
     try

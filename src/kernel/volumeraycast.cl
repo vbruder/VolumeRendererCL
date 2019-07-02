@@ -544,9 +544,9 @@ float3 transformVec3(const float16 mat, const float3 vec)
 #endif // WIN32
 {
     float16 viewMat;
-    float3 bbox_bl  __attribute__ ((packed));     // bounding box bottom left
-    float3 bbox_tr  __attribute__ ((packed));     // bounding box top right
-    uint ortho __attribute__ ((packed));         // bool
+    float3 bbox_bl;     // bounding box bottom left
+    float3 bbox_tr;     // bounding box top right
+    uint ortho;         // bool
 } camera_params;
 
 typedef struct tag_rendering_params

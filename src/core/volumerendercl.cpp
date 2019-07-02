@@ -784,8 +784,8 @@ size_t VolumeRenderCL::loadVolumeData(const std::string &fileName)
 
     std::vector<unsigned int> prefixSum(1024, 0);
 #pragma omp for
-    for (int i = 0; i < static_cast<int>(prefixSum.size()); ++i)
-        prefixSum.at(static_cast<unsigned int>(i)) = static_cast<unsigned int>(i)*4u;
+    for (int i = 0; i < int(prefixSum.size()); ++i)
+        prefixSum.at(uint(i)) = uint(i)*4u;
 
     std::partial_sum(prefixSum.begin(), prefixSum.end(), prefixSum.begin());
     setTffPrefixSum(prefixSum);
