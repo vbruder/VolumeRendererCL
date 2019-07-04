@@ -65,13 +65,8 @@ Sporadically, I try to also test on a Windows 10 system using the Visual Studio 
 
 Systems/hardware I successfully ran this renderer on: 
 * NVIDIA Maxwell & Pascal, AMD Fiji & Vega, Intel Gen9 GPU & Skylake CPU
-<<<<<<< HEAD
-* GCC 5.3.1 & 7.4.0, Visual Studio 2015 (v140), Clang 6.0
-* Qt 5.11.2 & 5.12.2
-=======
 * GCC 7.4.0, Visual Studio 2017 (v140), Clang 6.0
 * Qt 5.12.2 & Qt 5.13.0
->>>>>>> f1c5fa3a90cbf06e1bc1e78ce32fd44e4da516a9
 * CMake 3.10.2 & 3.12.2
 
 ## Screenshots ##
