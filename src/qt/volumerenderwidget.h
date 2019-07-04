@@ -111,7 +111,7 @@ public slots:
     void setRawTransferFunction(std::vector<unsigned char> tff);
 
 #undef Bool
-    void setTffInterpolation(const QString method);
+    void setTffInterpolation(const QEasingCurve::Type interpolation);
     void setCamOrtho(const bool camOrtho);
     void setContRendering(const bool setContRendering);
     void setIllumination(const int illum);

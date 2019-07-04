@@ -65,7 +65,7 @@ HoverPoints::HoverPoints(QWidget *widget, PointShape shape)
     widget->installEventFilter(this);
     widget->setAttribute(Qt::WA_AcceptTouchEvents);
 
-    m_connectionType = LineConnection;
+    m_connectionType = LinearConnection;
     m_sortType = XSort;
     m_shape = shape;
     m_pointPen = QPen(QColor(255, 255, 255, 191), 1);
@@ -413,7 +413,7 @@ void HoverPoints::paintPoints()
     {
         p.setPen(m_connectionPen);
         p.setBrush(m_curveBrush);
-        if (m_connectionType == CurveConnection)
+        if (m_connectionType == QuadConnection || m_connectionType == CubicConnection)
         {
             QPainterPath path;
             path.moveTo(m_points.at(0));
@@ -422,10 +422,22 @@ void HoverPoints::paintPoints()
                 QPointF p1 = m_points.at(i-1);
                 QPointF p2 = m_points.at(i);
                 qreal distance = p2.x() - p1.x();
-
-                path.cubicTo(p1.x() + distance / 2, p1.y(),
-                             p1.x() + distance / 2, p2.y(),
-                             p2.x(), p2.y());
+                if (m_connectionType == QuadConnection)
+                {
+                    QPointF mid = p1 + ((p2 - p1) / 2);
+                    // quad curve from start to mid
+                    path.quadTo(p1.x() + distance / 2, p1.y(),
+                                mid.x(), mid.y());
+                    // quad curve from mid to end
+                    path.quadTo(p1.x() + distance / 2, p2.y(),
+                                p2.x(), p2.y());
+                }
+                else if (m_connectionType == CubicConnection)
+                {
+                    path.cubicTo(p1.x() + distance / 2, p1.y(),
+                                 p1.x() + distance / 2, p2.y(),
+                                 p2.x(), p2.y());
+                }
             }
             p.drawPath(path);
         }

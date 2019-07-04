@@ -98,7 +98,7 @@ private:
     void writeSettings();
 
     void setStatusText();
-    void setInterpolation();
+    void setInterpolation(const int index);
 
     // ----- Members -----
     Ui::MainWindow *ui;

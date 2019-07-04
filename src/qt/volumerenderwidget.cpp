@@ -397,7 +397,13 @@ void VolumeRenderWidget::setSequenceStep(QString line)
     else if (line.contains("tffInterpolation"))
     {
         int pos = line.lastIndexOf(';');
-        setTffInterpolation(line.remove(0, pos + 2));
+        QString interpolation = line.remove(0, pos + 2);
+        if (interpolation == "linear")
+            setTffInterpolation(QEasingCurve::Linear);
+        else if (interpolation == "quad")
+            setTffInterpolation(QEasingCurve::InOutQuad);
+        else if (interpolation == "cubic")
+            setTffInterpolation(QEasingCurve::InOutCubic);
     }
 }
 
@@ -859,19 +865,27 @@ void VolumeRenderWidget::updateSamplingRate(double samplingRate)
  * @brief VolumeRenderWidget::setInterpolation
  * @param method
  */
-void VolumeRenderWidget::setTffInterpolation(const QString method)
+void VolumeRenderWidget::setTffInterpolation(const QEasingCurve::Type interpolation)
 {
-    if (method.contains("Quad"))
-        _tffInterpol = QEasingCurve::InOutQuad;
-    else if (method.contains("Linear"))
-        _tffInterpol = QEasingCurve::Linear;
+    _tffInterpol = interpolation;
+
+//    if (interpolation.contains("Quad"))
+//        _tffInterpol = QEasingCurve::InOutQuad;
+//    else if (interpolation.contains("Linear"))
+//        _tffInterpol = QEasingCurve::Linear;
 
 	if (_logInteraction)
 	{
 		QString s;
 		s += QString::number(_timer.elapsed());
 		s += "; tffInterpolation; ";
-		s += _tffInterpol == QEasingCurve::InOutQuad ? "quad" : "linear";
+        switch (QEasingCurve::InOutQuad)
+        {
+        case QEasingCurve::Linear: s += "linear"; break;
+        case QEasingCurve::InOutQuad: s += "quad"; break;
+        case QEasingCurve::InOutCubic: s += "cubic"; break;
+        default: break;
+        }
 		s += "\n";
 
 		logInteraction(s);

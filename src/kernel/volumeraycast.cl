@@ -714,7 +714,6 @@ __kernel void volumeRender(  __read_only image3d_t volData
                           (raycast.samplingRate*length(sampleDist*rayDir*convert_float3(volRes))));
     float samples = ceil(sampleDist/stepSize);
     stepSize = sampleDist/samples;
-    float offset = stepSize*rand*0.9f; // offset by 'random' distance to avoid moiré pattern
 
     // raycast parameters
     tnear = max(0.f, tnear);    // clamp to near plane
@@ -729,6 +728,9 @@ __kernel void volumeRender(  __read_only image3d_t volData
     float3 voxLen = (float3)(1.f) / convert_float3(volRes);
     float refSamplingInterval = 1.f / raycast.samplingRate;
     float t_exit = tfar;
+
+    // offset by random distance to avoid moiré pattern and interpolation issues
+    float offset = length(voxLen)*rand*1.0f;
 
 #ifdef ESS
     // 3D DDA initialization

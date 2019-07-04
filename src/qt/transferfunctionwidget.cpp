@@ -80,7 +80,7 @@ ShadeWidget::ShadeWidget(ShadeType type, QWidget *parent)
     points << QPointF(0, sizeHint().height()) << QPointF(sizeHint().width(), 0);
 
     _pHoverPoints = QSharedPointer<HoverPoints>(new HoverPoints(this, HoverPoints::CircleShape));
-    _pHoverPoints->setConnectionType(HoverPoints::LineConnection);
+    _pHoverPoints->setConnectionType(HoverPoints::LinearConnection);
     _pHoverPoints->setPoints(points);
     _pHoverPoints->setPointLock(0, HoverPoints::LockToLeft);
     _pHoverPoints->setPointLock(1, HoverPoints::LockToRight);
@@ -177,12 +177,7 @@ TransferFunctionEditor::TransferFunctionEditor(QWidget *parent) : QWidget(parent
     vbox->setMargin(1);
 
     _pAlphaShade = new ShadeWidget(ShadeWidget::ARGBShade, this);
-    _shades.push_back(_pAlphaShade);
-
-    foreach (ShadeWidget *s, _shades)
-    {
-        vbox->addWidget(s);
-    }
+    vbox->addWidget(_pAlphaShade);
 
     connect(_pAlphaShade, &ShadeWidget::selectedPointChanged,
             this, &TransferFunctionEditor::selectedPointUpdated);
@@ -201,11 +196,7 @@ void TransferFunctionEditor::resetPoints()
     int v_off = this->height() / 8;
     pts << QPointF(this->width() / 2, this->height() / 2)
         << QPointF(this->width() / 2 - h_off, this->height() / 2 - v_off);
-
-    foreach (ShadeWidget *s, _shades)
-    {
-        s->hoverPoints()->setPoints(pts);
-    }
+    _pAlphaShade->hoverPoints()->setPoints(pts);
 }
 
 void TransferFunctionEditor::pointsUpdated()
@@ -216,11 +207,8 @@ void TransferFunctionEditor::pointsUpdated()
     QPolygonF points;
     QVector<QColor> colors;
 
-    foreach (ShadeWidget *s, _shades)
-    {
-        colors.append(s->colors());
-        points += s->points();
-    }
+    colors.append(_pAlphaShade->colors());
+    points += _pAlphaShade->points();
     std::sort(points.begin(), points.end(), x_less_than);
 
     for (int i = 0; i < points.size(); ++i)
@@ -295,21 +283,18 @@ const QGradientStops TransferFunctionEditor::getGradientStops() const
  * @brief TransferFunctionEditor::setInterpolation
  * @param method
  */
-void TransferFunctionEditor::setInterpolation(const QString method)
+void TransferFunctionEditor::setInterpolation(const QEasingCurve::Type interpolation)
 {
-    if (method.contains("Quad"))
+    switch (interpolation)
     {
-        foreach (ShadeWidget *s, _shades)
-             s->hoverPoints()->setConnectionType(HoverPoints::CurveConnection);
+    case QEasingCurve::InOutCubic:
+        _pAlphaShade->hoverPoints()->setConnectionType(HoverPoints::CubicConnection); break;
+    case QEasingCurve::InOutQuad:
+        _pAlphaShade->hoverPoints()->setConnectionType(HoverPoints::QuadConnection); break;
+    case QEasingCurve::Linear:
+        _pAlphaShade->hoverPoints()->setConnectionType(HoverPoints::LinearConnection); break;
     }
-    else if (method.contains("Linear"))
-    {
-        foreach (ShadeWidget *s, _shades)
-             s->hoverPoints()->setConnectionType(HoverPoints::LineConnection);
-    }
-    foreach (ShadeWidget *s, _shades)
-         s->hoverPoints()->firePointChange();
-
+    _pAlphaShade->hoverPoints()->firePointChange();
     emit pointsUpdated();
 }
 
@@ -320,7 +305,6 @@ void TransferFunctionEditor::setInterpolation(const QString method)
  */
 void TransferFunctionEditor::setColorSelected(const QColor color)
 {
-//    foreach (ShadeWidget *s, _shades)
     _pAlphaShade->hoverPoints()->setColorSelected(color);
     emit pointsUpdated();
 }
@@ -366,9 +350,9 @@ void TransferFunctionWidget::resetTransferFunction()
  * @brief TransferFunctionWidget::setInterpolation
  * @param method
  */
-void TransferFunctionWidget::setInterpolation(QString method)
+void TransferFunctionWidget::setInterpolation(const QEasingCurve::Type interpolation)
 {
-    _pEditor->setInterpolation(method);
+    _pEditor->setInterpolation(interpolation);
 }
 
 /**

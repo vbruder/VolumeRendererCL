@@ -79,8 +79,9 @@ public:
 
     enum ConnectionType {
         NoConnection,
-        LineConnection,
-        CurveConnection
+        LinearConnection,
+        QuadConnection,
+        CubicConnection
     };
 
     HoverPoints(QWidget *widget, PointShape shape);

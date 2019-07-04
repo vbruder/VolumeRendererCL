@@ -164,8 +164,8 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::updateTransferFunction);
     connect(ui->pbResetTff, &QPushButton::clicked,
             ui->transferFunctionEditor, &TransferFunctionWidget::resetTransferFunction);
-    connect(ui->rbLinear, &QRadioButton::toggled, this, &MainWindow::setInterpolation);
-    connect(ui->rbQuad, &QRadioButton::toggled, this, &MainWindow::setInterpolation);
+    connect(ui->cbTffInterpolation, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+            this, &MainWindow::setInterpolation);
     connect(ui->transferFunctionEditor->getEditor(), &TransferFunctionEditor::selectedPointChanged,
             ui->colorWheel, &colorwidgets::ColorWheel::setColor);
     connect(ui->colorWheel, &colorwidgets::ColorWheel::colorChanged,
@@ -501,13 +501,14 @@ DatRawReader::Properties MainWindow::showVolumePropertyDialog(const QString &fil
                                      tr("Format:"), items, 0, false, &ok).toStdString();
     qint64 fileSize = QFile(fileName).size();
     int inferredValue = infer_volume_resolution(fileSize, p.format);
+    int max3DimageSize = 16384; // TODO: query this value from the used OpenCL device
     p.volume_res.at(0) = uint(QInputDialog::getInt(this, tr("Volume resolution in x direction"),
-                                 tr("Resolution in X:"), 1, inferredValue, 9999, 1, &ok));
+                              tr("Resolution in X:"), 1, inferredValue, max3DimageSize, 1, &ok));
     p.volume_res.at(1) = uint(QInputDialog::getInt(this, tr("Volume resolution in y direction"),
-                                 tr("Resolution in Y:"), 1, int(p.volume_res.at(0)), 9999, 1, &ok));
+                              tr("Resolution in Y:"), 1, int(p.volume_res.at(0)), max3DimageSize, 1, &ok));
     p.volume_res.at(2) = uint(QInputDialog::getInt(this, tr("Volume resolution in z direction"),
-                                 tr("Resolution in Z:"), 1,
-                                 int(fileSize/p.volume_res.at(0)/p.volume_res.at(1)), 9999, 1, &ok));
+                              tr("Resolution in Z:"), 1,
+                              int(fileSize/p.volume_res.at(0)/p.volume_res.at(1)), max3DimageSize, 1, &ok));
 
     p.slice_thickness.at(0) = QInputDialog::getDouble(this, tr("Slice thickness in x direction"),
                                     tr("Slice thickness in X:"), 1.0, 0.0, 100.0, 6, &ok);
@@ -929,14 +930,18 @@ void MainWindow::playInteractionSequence()
 /**
  * @brief MainWindow::setInterpolation
  */
-void MainWindow::setInterpolation()
+void MainWindow::setInterpolation(const int index)
 {
-    QString method = "Linear";
-    if (ui->rbQuad->isChecked())
-        method = "Quad";
-
-    ui->volumeRenderWidget->setTffInterpolation(method);
-    ui->transferFunctionEditor->setInterpolation(method);
+    QEasingCurve::Type interpolation = QEasingCurve::Linear;
+    switch (index)
+    {
+        case 0: interpolation = QEasingCurve::Linear; break;
+        case 1: interpolation = QEasingCurve::InOutQuad; break;
+        case 2: interpolation = QEasingCurve::InOutCubic; break;
+        default: break;
+    }
+    ui->volumeRenderWidget->setTffInterpolation(interpolation);
+    ui->transferFunctionEditor->setInterpolation(interpolation);
 }
 
 /**

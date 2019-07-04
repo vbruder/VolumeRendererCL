@@ -55,6 +55,7 @@
 #include <QGradientStop>
 #include <QPainter>
 #include <QWidget>
+#include <QEasingCurve>
 
 class HoverPoints;
 
@@ -117,7 +118,7 @@ public:
 
     void resetPoints();
 
-    void setInterpolation(const QString method);
+    void setInterpolation(const QEasingCurve::Type interpolation);
 
     void setColorSelected(const QColor color);
 
@@ -132,8 +133,6 @@ signals:
 
 private:
     ShadeWidget *_pAlphaShade;
-
-    QVector<ShadeWidget *> _shades;
     QGradientStops _stops;
 };
 
@@ -156,7 +155,7 @@ public:
 public slots:
     void resetTransferFunction();
 
-    void setInterpolation(QString method);
+    void setInterpolation(const QEasingCurve::Type interpolation);
 
     void setColorSelected(const QColor color);
 
