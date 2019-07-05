@@ -730,7 +730,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
     float t_exit = tfar;
 
     // offset by random distance to avoid moiré pattern and interpolation issues
-    float offset = length(voxLen)*rand*1.0f;
+    float offset = length(voxLen)*rand*2.0f;
 
 #ifdef ESS
     // 3D DDA initialization
