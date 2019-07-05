@@ -71,9 +71,13 @@ Systems/hardware I successfully ran this renderer on:
 
 ## Screenshots ##
 
-![2019-05-02-richtmyer](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-05-02-richtmyer_meshkov.png)
+![2019-07-05-richtmyer](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-07-05-rmi.png)
 
-![2019-05-02-backpack](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-05-02-backpack.png)
+![2019-07-05-backpack](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-07-05-backpack.png)
+
+![2019-07-05-nova-pt](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-07-05-novaPT3.png)
+
+![2019-07-05-bonsai-pt](https://github.com/vbruder/VolumeRendererCL/blob/develop/screenshots/2019-07-05-bonsaiPT.png)
 
 ## License ##
 
