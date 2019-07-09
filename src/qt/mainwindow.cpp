@@ -474,12 +474,16 @@ void MainWindow::showAboutDialog()
  * @param format Data precision (UCHAR, USHORT or FLOAT).
  * @return The inferred value.
  */
-int infer_volume_resolution(qint64 &file_size, const std::string &format)
+int infer_volume_resolution(qint64 &file_size, const DatRawReader::data_format &format)
 {
-    if (format == "USHORT")
+    if (format == DatRawReader::data_format::UCHAR)
+        file_size /= sizeof(unsigned char);
+    else if (format == DatRawReader::data_format::USHORT)
         file_size /= sizeof(unsigned short);
-    else if (format == "FLOAT")
+    else if (format == DatRawReader::data_format::FLOAT)
         file_size /= sizeof(float);
+    else if (format == DatRawReader::data_format::DOUBLE)
+        file_size /= sizeof(double);
     else // (format == "UCHAR")
         file_size /= sizeof(unsigned char); // default
 
@@ -497,8 +501,16 @@ DatRawReader::Properties MainWindow::showVolumePropertyDialog(const QString &fil
     bool ok;
     QStringList items;
     items << tr("UCHAR") << tr("USHORT") << tr("FLOAT");
-    p.format = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
-                                     tr("Format:"), items, 0, false, &ok).toStdString();
+    QString format = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
+                                     tr("Format:"), items, 0, false, &ok);
+    p.format = static_cast<DatRawReader::data_format>(items.indexOf(format));
+
+    items.clear();
+    items << tr("Little") << tr("Big");
+    QString endianness = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
+                                               tr("Endianness:"), items, 0, false, &ok);
+    p.endianness = static_cast<DatRawReader::data_endianness>(items.indexOf(endianness));
+
     qint64 fileSize = QFile(fileName).size();
     int inferredValue = infer_volume_resolution(fileSize, p.format);
     int max3DimageSize = 16384; // TODO: query this value from the used OpenCL device

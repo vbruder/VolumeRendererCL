@@ -52,15 +52,8 @@ void DatRawReader::read_files(Properties volume_properties)
         this->_prop = volume_properties;
         // check if we have a dat file where the binary files are specified
         if (volume_properties.raw_file_names.empty())
-        {
             this->read_dat(_prop.dat_file_name);
-        }
-//        else    // we only have the raw binary file
-//        {
-//            _prop.raw_file_names.clear();
-//            std::cout << "Trying to read binary data directly from " << file_name << std::endl;
-//            this->_prop.raw_file_names.push_back(file_name);
-//        }
+
         this->_raw_data.clear();
         this->_histograms.clear();
         for (size_t i = 0; i < _prop.raw_file_names.size(); ++i)
@@ -149,60 +142,68 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
     }
 
     bool setSliceThickness = false;
-    for (auto l : lines)
+    for (auto &l : lines)
     {
-        if (!l.empty())
+        if (l.empty())
+            continue;
+
+        std::string name = l.at(0);
+        if (name.find("ObjectFileName") != std::string::npos && l.size() > 1u)
         {
-            std::string name = l.at(0);
-            if (name.find("ObjectFileName") != std::string::npos && l.size() > 1u)
+            _prop.raw_file_names.clear();
+            for (const auto &s : l)
             {
-                _prop.raw_file_names.clear();
-                for (const auto &s : l)
-                {
-                    if (s.find("ObjectFileName") == std::string::npos)
-                        _prop.raw_file_names.push_back(s);
-                }
-                _prop.volume_res.at(3) = static_cast<unsigned int>(_prop.raw_file_names.size());
+                if (s.find("ObjectFileName") == std::string::npos)
+                    _prop.raw_file_names.push_back(s);
             }
-            else if (name.find("Resolution") != std::string::npos && l.size() > 3u)
+            _prop.volume_res.at(3) = static_cast<unsigned int>(_prop.raw_file_names.size());
+        }
+        else if (name.find("Resolution") != std::string::npos && l.size() > 3u)
+        {
+            for (size_t i = 1; i < std::min(l.size(), static_cast<size_t>(5)); ++i)
             {
-                for (size_t i = 1; i < std::min(l.size(), static_cast<size_t>(5)); ++i)
-                {
-                    _prop.volume_res.at(i - 1) = static_cast<unsigned int>(std::stoi(l.at(i)));
-                }
-            }
-            else if (name.find("SliceThickness") != std::string::npos && l.size() > 3u)
-            {
-                // slice thickness in x,y,z dimension
-                for (size_t i = 1; i < 4; ++i)
-                {
-                    double thickness = std::stod(l.at(i));
-                    // HACK for locale with ',' instread of '.' as decimal separator
-                    if (thickness <= 0)
-                        std::replace(l.at(i).begin(), l.at(i).end(), '.', ',');
-                    _prop.slice_thickness.at(i - 1) = std::stod(l.at(i));
-                }
-                setSliceThickness = true;
-            }
-            else if (name.find("Format") != std::string::npos && l.size() > 1u)
-            {
-                _prop.format = l.at(1);
-            }
-            else if ((   name.find("ChannelOrder") != std::string::npos
-                      || name.find("ObjectModel") != std::string::npos) && l.size() > 1u)
-            {
-                _prop.image_channel_order = l.at(1);
-            }
-            else if (name.find("Nodes") != std::string::npos && l.size() > 1u)
-            {
-                _prop.node_file_name = l.at(1);
-            }
-            else if ((   name.find("TimeSeries") != std::string::npos
-                      || name.find("TimeSteps")  != std::string::npos) && l.size() > 1u)
-            {
-                _prop.volume_res.at(3) = static_cast<unsigned int>(std::stoi(l.at(1)));
+                _prop.volume_res.at(i - 1) = static_cast<unsigned int>(std::stoi(l.at(i)));
             }
         }
+        else if (name.find("SliceThickness") != std::string::npos && l.size() > 3u)
+        {
+            // slice thickness in x,y,z dimension
+            for (size_t i = 1; i < 4; ++i)
+            {
+                double thickness = std::stod(l.at(i));
+                // HACK for locale with ',' instread of '.' as decimal separator
+                if (thickness <= 0)
+                    std::replace(l.at(i).begin(), l.at(i).end(), '.', ',');
+                _prop.slice_thickness.at(i - 1) = std::stod(l.at(i));
+            }
+            setSliceThickness = true;
+        }
+        else if (name.find("Format") != std::string::npos && l.size() > 1u)
+        {
+            if (l.at(1) == "UCHAR") _prop.format = UCHAR;
+            else if (l.at(1) == "USHORT") _prop.format = USHORT;
+            else if (l.at(1) == "FLOAT") _prop.format = FLOAT;
+            else if (l.at(1) == "DOUBLE") _prop.format = DOUBLE;
+        }
+        else if ((   name.find("ChannelOrder") != std::string::npos
+                     || name.find("ObjectModel") != std::string::npos) && l.size() > 1u)
+        {
+            _prop.image_channel_order = l.at(1);
+        }
+        else if (name.find("Nodes") != std::string::npos && l.size() > 1u)
+        {
+            _prop.node_file_name = l.at(1);
+        }
+        else if ((   name.find("TimeSeries") != std::string::npos
+                     || name.find("TimeSteps")  != std::string::npos) && l.size() > 1u)
+        {
+            _prop.volume_res.at(3) = static_cast<unsigned int>(std::stoi(l.at(1)));
+        }
+        else if (name.find("Endianness") != std::string::npos && l.size() > 1u)
+        {
+            _prop.endianness = (l.at(1) == "LITTLE") ? LITTLE : BIG;
+        }
+
     }
 
     // check values read from the dat file
@@ -240,7 +241,7 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
         std::cerr << "Assuming a slice thickness of 1.0 in each dimension." << std::endl;
         _prop.slice_thickness.fill(1.0);
     }
-    if (_prop.format.empty())
+    if (_prop.format == UNKNOWN_FORMAT)
     {
         if (!std::any_of(std::begin(_prop.volume_res),
                          std::end(_prop.volume_res), [](int i){return i == 0;}))
@@ -335,14 +336,12 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
         float maximum = std::numeric_limits<float>::min();
 
         // assume UCHAR if no format is given
-        if (_prop.format.empty())
+        if (_prop.format == UNKNOWN_FORMAT)
         {
             std::cout << "WARNING: Format could not be determined, assuming UCHAR" << std::endl;
-            _prop.format = "UCHAR";
+            _prop.format = UCHAR;
         }
-
-        // if float precision: change endianness to little endian
-        if (_prop.format == "FLOAT")
+        else if (_prop.format == FLOAT)
         {
             std::vector<float> floatdata(_prop.raw_file_size / sizeof(float));
             is.read(reinterpret_cast<char*>(floatdata.data()),
@@ -352,7 +351,9 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
 #endif
             for (size_t i = 0; i < floatdata.size(); ++i)
             {
-                endswap(&floatdata.at(i)); // swap endianness to little endian
+                // change endianness to big endian if needed
+                if (_prop.endianness == BIG)
+                    endswap(&floatdata.at(i));
                 maximum = std::max(maximum, floatdata.at(i));
             }
             _prop.max_value = maximum;
@@ -376,7 +377,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             std::cout << "Data range: [" << _prop.min_value << ".." << _prop.max_value
                       << "]" << std::endl;
         }
-        else if (_prop.format == "UCHAR")   // UCHAR should be little endian
+        else if (_prop.format == UCHAR)
         {
             is.read(reinterpret_cast<char*>(raw_timestep.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
@@ -391,7 +392,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
                 histo[size_t(std::clamp(value, 0.f, 255.f))]++;
             }
         }
-        else if (_prop.format == "USHORT")  // USHORT should be little endian
+        else if (_prop.format == USHORT)
         {
             std::vector<unsigned short> ushortdata(_prop.raw_file_size / sizeof(unsigned short));
             is.read(reinterpret_cast<char*>(ushortdata.data()),
@@ -409,8 +410,17 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
                 ushortdata.at(i) = static_cast<unsigned short>(round(ushortdata.at(i)*stretch));
                 histo[size_t(std::clamp(ushortdata.at(i)/256.f, 0.f, 255.f))]++;
                 char *memp = reinterpret_cast<char*>(&ushortdata.at(i));
-                for (size_t j = 0; j < 2; ++j)
-                    raw_timestep[i*2 + j] = (*(memp + j));
+
+                if (_prop.endianness == BIG)
+                {
+                    raw_timestep[i*2 + 1] = (*(memp + 0));
+                    raw_timestep[i*2 + 0] = (*(memp + 1));
+                }
+                else    // default is little endian
+                {
+                    raw_timestep[i*2 + 0] = (*(memp + 0));
+                    raw_timestep[i*2 + 1] = (*(memp + 1));
+                }
             }
         }
 
@@ -436,7 +446,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
 
     // if format was not specified in .dat file, try to calculate from
     // file size and volume resolution
-    if (_prop.format.empty() && !_raw_data.empty()
+    if (_prop.format == UNKNOWN_FORMAT && !_raw_data.empty()
             && std::none_of(std::begin(_prop.volume_res),
                             std::end(_prop.volume_res), [](int i){return i == 0;}))
     {
@@ -446,16 +456,20 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
         switch (bytes)
         {
         case 1:
-            _prop.format = "UCHAR";
+            _prop.format = UCHAR;
             std::cout << "Format determined as UCHAR." << std::endl;
             break;
         case 2:
-            _prop.format = "USHORT";
+            _prop.format = USHORT;
             std::cout << "Format determined as USHORT." << std::endl;
             break;
         case 4:
-            _prop.format = "FLOAT";
+            _prop.format = FLOAT;
             std::cout << "Format determined as FLOAT." << std::endl;
+            break;
+        case 8:
+            _prop.format = DOUBLE;
+            std::cout << "Format determined as DOUBLE." << std::endl;
             break;
         default: throw std::runtime_error("Could not resolve missing format specification.");
         }
@@ -470,12 +484,14 @@ void DatRawReader::infer_volume_resolution(unsigned long long file_size)
     std::cout << "WARNING: Trying to infer volume resolution from data size, assuming equal dimensions."
               << std::endl;
 
-    if (_prop.format == "UCHAR")
-        file_size /= sizeof(unsigned char);
-    else if (_prop.format == "USHORT")
-        file_size /= sizeof(unsigned short);
-    else if (_prop.format == "FLOAT")
-        file_size /= sizeof(float);
+    switch (_prop.format)
+    {
+        case UCHAR:  file_size /= sizeof(unsigned char); break;
+        case USHORT: file_size /= sizeof(unsigned short); break;
+        case FLOAT:  file_size /= sizeof(float); break;
+        case DOUBLE: file_size /= sizeof(double); break;
+        default: break;
+    }
 
     unsigned int cuberoot = static_cast<unsigned int>(std::cbrt(file_size));
     _prop.volume_res.at(0) = cuberoot;

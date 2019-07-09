@@ -38,6 +38,21 @@
 class DatRawReader
 {
 public:
+    enum data_format
+    {
+          UCHAR = 0
+        , USHORT
+        , FLOAT
+        , DOUBLE
+        , UNKNOWN_FORMAT
+    };
+
+    enum data_endianness
+    {
+          LITTLE = 0
+        , BIG
+    };
+
     /// <summary>
     /// The Properties struct that can hold .dat and .raw file information.
     /// </summary>
@@ -49,9 +64,10 @@ public:
 
         std::array<unsigned int, 4> volume_res = {{0, 0, 0, 1}};     // x, y, z, t
         std::array<double, 3> slice_thickness = {{1.0, 1.0, 1.0}};
-        std::string format = "";     // UCHAR, USHORT, FLOAT
+        data_format format = UNKNOWN_FORMAT;
+        data_endianness endianness = LITTLE;
         std::string node_file_name = "";
-        std::string image_channel_order = "R";
+        std::string image_channel_order = "R";  // TODO: change to enum?
         unsigned int time_series = {1u};
         // data range for float normalization: TODO: add to kernel
         float min_value = std::numeric_limits<float>::max();
@@ -69,8 +85,20 @@ public:
             {
                 str += std::to_string(v) + " ";
             }
-            str += "| Format: " + format + " " + image_channel_order;
+            str += "| Format: " + get_format_string(format) + " " + image_channel_order;
             return str;
+        }
+
+        const std::string get_format_string(const enum data_format f) const
+        {
+            switch (f)
+            {
+                case UNKNOWN_FORMAT: return "UNKNOWN FORMAT";
+                case UCHAR: return "UCHAR";
+                case USHORT: return "USHORT";
+                case FLOAT: return "FLOAT";
+                case DOUBLE: return "DOUBLE";
+            }
         }
     };
 

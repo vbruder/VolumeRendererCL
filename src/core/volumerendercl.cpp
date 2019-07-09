@@ -262,20 +262,24 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
     format.image_channel_order = CL_R;
     unsigned int formatMultiplier = 1;
 
-    if (_dr.properties().format == "UCHAR")
+    if (_dr.properties().format == DatRawReader::UCHAR)
+    {
         format.image_channel_data_type = CL_UNORM_INT8;
-    else if (_dr.properties().format == "USHORT")
+    }
+    else if (_dr.properties().format == DatRawReader::USHORT)
     {
         format.image_channel_data_type = CL_UNORM_INT16;
         formatMultiplier = 2;
     }
-    else if (_dr.properties().format == "FLOAT")
+    else if (_dr.properties().format == DatRawReader::FLOAT)
     {
         format.image_channel_data_type = CL_FLOAT;
         formatMultiplier = 4;
     }
-    else
+    else    // double not supported yet
+    {
         throw std::invalid_argument("Unknown or invalid volume data format.");
+    }
 
     try
     {
@@ -634,11 +638,11 @@ void VolumeRenderCL::generateBricks()
         // set memory object
         cl::ImageFormat format;
         format.image_channel_order = CL_RG;  // CL_RG for min+max
-        if (_dr.properties().format == "UCHAR")
+        if (_dr.properties().format == DatRawReader::UCHAR)
             format.image_channel_data_type = CL_UNORM_INT8;
-        else if (_dr.properties().format == "USHORT")
+        else if (_dr.properties().format == DatRawReader::USHORT)
             format.image_channel_data_type = CL_UNORM_INT16;
-        else if (_dr.properties().format == "FLOAT")
+        else if (_dr.properties().format == DatRawReader::FLOAT)
             format.image_channel_data_type = CL_FLOAT;
         else
             throw std::invalid_argument("Unknown or invalid volume data format.");
@@ -707,16 +711,16 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
             throw std::invalid_argument("Unknown or invalid volume color format.");
 
         unsigned int formatMultiplier = sizeof(cl_uchar);
-        if (_dr.properties().format == "UCHAR")
+        if (_dr.properties().format == DatRawReader::UCHAR)
         {
             format.image_channel_data_type = CL_UNORM_INT8;
         }
-        else if (_dr.properties().format == "USHORT")
+        else if (_dr.properties().format == DatRawReader::USHORT)
         {
             format.image_channel_data_type = CL_UNORM_INT16;
             formatMultiplier = sizeof(cl_ushort);
         }
-        else if (_dr.properties().format == "FLOAT")
+        else if (_dr.properties().format == DatRawReader::FLOAT)
         {
             format.image_channel_data_type = CL_FLOAT;
             formatMultiplier = sizeof(cl_float);
