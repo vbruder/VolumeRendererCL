@@ -43,7 +43,11 @@ Format: 		UCHAR
 
 The `ObjectFileName` may contain multiple paths to different time steps.
 Alternatively, `Resolution` may be extended with a fourth dimension if the raw file names of the timesteps contain a suffix with ascending numbering.
-Currently supported formats are: `UCHAR`, `USHORT`, and `FLOAT`
+Currently supported formats are: `UCHAR`, `USHORT`, and `FLOAT`.
+
+Optional qualifyers:
+- `Endianness:` can be set to `LITTLE` (default) or `BIG`.
+- `ChannelOrder:` can be set to `R` (default) for single value scalar fields, `RGBA` for pre-computed color and opacity fields, or `RG` for two channel scalar fields (single color and opacity).
 
 ## Setup and build ##
 
