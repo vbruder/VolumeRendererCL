@@ -26,6 +26,9 @@
 
 int main(int argc, char *argv[])
 {
+    QApplication a(argc, argv);
+    QErrorMessage::qtHandler();
+
     QSurfaceFormat fmt;
     fmt.setDepthBufferSize(24);
     if (QOpenGLContext::openGLModuleType() == QOpenGLContext::LibGL)
@@ -38,9 +41,6 @@ int main(int argc, char *argv[])
         fmt.setVersion(3, 0);
     }
     QSurfaceFormat::setDefaultFormat(fmt);
-
-    QApplication a(argc, argv);
-    QErrorMessage::qtHandler();
 
     MainWindow w;
     w.show();
