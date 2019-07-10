@@ -364,7 +364,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             {
                 floatdata.at(i) /= maximum;
                 size_t bin = static_cast<size_t>(round(floatdata.at(i) * 255.f));
-                bin = std::min(bin, 255ul);
+                bin = std::min(bin, size_t(255));
                 histo[bin]++;
                 char *memp = reinterpret_cast<char*>(&floatdata.at(i));
                 for (size_t j = 0; j < 4; ++j)
