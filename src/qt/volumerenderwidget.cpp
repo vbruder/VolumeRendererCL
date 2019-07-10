@@ -39,18 +39,18 @@
 const static double Z_NEAR = 1.0;
 const static double Z_FAR = 500.0;
 
-static const char *pVsScreenQuadSource =
+static const QString VsScreenQuadSource =
     "#version 330\n"
-    "layout(location = 0) in highp vec3 vertex;\n"
-    "out highp vec2 texCoord;\n"
+    "layout(location = 0) in vec3 vertex;\n"
+    "out vec2 texCoord;\n"
     "uniform mat4 projMatrix;\n"
     "uniform mat4 mvMatrix;\n"
     "void main() {\n"
     "   texCoord = vec2(0.5f) + 0.5f * vertex.xy;\n"
-    "   gl_Position = projMatrix * mvMatrix * vec4(vertex.xy, 1.0f, 1.0f);\n"
+    "   gl_Position = projMatrix * mvMatrix * vec4(vertex.xy, 1.0, 1.0);\n"
     "}\n";
 
-static const char *pFsScreenQuadSource =
+static const QString FsScreenQuadSource =
     "#version 330\n"
     "in highp vec2 texCoord;\n"
     "out highp vec4 fragColor;\n"
@@ -75,7 +75,7 @@ static const char *pFsScreenQuadSource =
     "   }\n"
     "   fragColor.xyz = color;\n"
     "   //fragColor = pow(fragColor, vec4(1/2.2)); // gamma correction \n"
-    "   fragColor.a = 1.0f;\n"
+    "   fragColor.a = 1.0;\n"
     "}\n";
 
 
@@ -193,8 +193,21 @@ void VolumeRenderWidget::initializeGL()
     glDisable(GL_CULL_FACE);
     glDisable(GL_DEPTH_TEST);
 
-    _spScreenQuad.addShaderFromSourceCode(QOpenGLShader::Vertex, pVsScreenQuadSource);
-    _spScreenQuad.addShaderFromSourceCode(QOpenGLShader::Fragment, pFsScreenQuadSource);
+    QString versionedVsSrc = VsScreenQuadSource;
+    QString versionedFsSrc = VsScreenQuadSource;
+    if (QOpenGLContext::currentContext()->isOpenGLES())
+    {
+        versionedVsSrc.prepend(QByteArrayLiteral("#version 300 es\n"));
+        versionedFsSrc.prepend(QByteArrayLiteral("#version 300 es\n"));
+    }
+    else
+    {
+        versionedVsSrc.prepend(QByteArrayLiteral("#version 330\n"));
+        versionedFsSrc.prepend(QByteArrayLiteral("#version 330\n"));
+    }
+
+    _spScreenQuad.addShaderFromSourceCode(QOpenGLShader::Vertex, VsScreenQuadSource);
+    _spScreenQuad.addShaderFromSourceCode(QOpenGLShader::Fragment, FsScreenQuadSource);
     _spScreenQuad.bindAttributeLocation("vertex", 0);
     _spScreenQuad.link();
 
@@ -250,7 +263,7 @@ void VolumeRenderWidget::initVolumeRenderer(bool useGL, const bool useCPU)
         _useGL = false;
 		try
 		{
-			qCritical() << e.what() << "\nSDisabling OpenGL context sharing.";
+            qCritical() << e.what() << "\nDisabling OpenGL context sharing.";
 			_volumerender.initialize(_useGL, false);
 		}
 		catch (std::runtime_error e)

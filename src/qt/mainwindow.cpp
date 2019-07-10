@@ -540,6 +540,11 @@ bool MainWindow::readVolumeFile(const QUrl &url)
 {
     QFileInfo finf(url.fileName());
     QString fileName = url.path();
+#ifdef _WIN32
+    // remove leading / if present (windows)
+    if (fileName.startsWith('/'))
+        fileName.remove(0, 1);
+#endif
     if (fileName.isEmpty())
     {
         _progBar.deleteLater();
@@ -760,6 +765,8 @@ void MainWindow::setStatusText()
  */
 void MainWindow::updateHistogram()
 {
+    if (!ui->volumeRenderWidget->hasData())
+        return;
     unsigned int t = 0u;
     if (ui->volumeRenderWidget->getVolumeResolution().w() > 1)
             t = static_cast<unsigned int>(ui->sbTimeStep->value());

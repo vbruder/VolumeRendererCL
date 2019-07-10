@@ -38,13 +38,13 @@
 #include <QKeyEvent>
 #include <QOpenGLTexture>
 #include <QPropertyAnimation>
-#include <qopenglfunctions_4_3_core.h>
+#include <QOpenGLExtraFunctions>
 #include <QPainter>
 #include <QElapsedTimer>
 
 #include "src/core/volumerendercl.h"
 
-class VolumeRenderWidget : public QOpenGLWidget, protected QOpenGLFunctions_4_3_Core
+class VolumeRenderWidget : public QOpenGLWidget, protected QOpenGLExtraFunctions
 {
     Q_OBJECT
 

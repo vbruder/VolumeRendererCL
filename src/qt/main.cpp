@@ -26,6 +26,19 @@
 
 int main(int argc, char *argv[])
 {
+    QSurfaceFormat fmt;
+    fmt.setDepthBufferSize(24);
+    if (QOpenGLContext::openGLModuleType() == QOpenGLContext::LibGL)
+    {
+        fmt.setVersion(3, 3);
+        fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+    }
+    else
+    {
+        fmt.setVersion(3, 0);
+    }
+    QSurfaceFormat::setDefaultFormat(fmt);
+
     QApplication a(argc, argv);
     QErrorMessage::qtHandler();
 
