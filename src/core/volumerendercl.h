@@ -189,7 +189,7 @@ public:
      * @brief Return spacial and temporal resolution of loaded volume data set.
      * @return 4D array containing the resolution in x,y,z direction and number of time steps.
      */
-    const std::array<unsigned int, 4> getResolution() const;
+    const std::array<size_t, 4> getResolution() const;
 
     /**
      * @brief Set the transfer function for the volume raycast as a kernel argument.

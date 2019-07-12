@@ -62,7 +62,7 @@ public:
         std::vector<std::string> raw_file_names;
         size_t raw_file_size = 0;
 
-        std::array<unsigned int, 4> volume_res = {{0, 0, 0, 1}};     // x, y, z, t
+        std::array<size_t, 4> volume_res = {{0, 0, 0, 1}};     // x, y, z, t
         std::array<double, 3> slice_thickness = {{1.0, 1.0, 1.0}};
         data_format format = UNKNOWN_FORMAT;
         data_endianness endianness = LITTLE;
@@ -149,7 +149,7 @@ private:
     /// Assumes equal size in each dimension and UCHAr format if not specified otherwise.
     /// <summary>
     /// <param name="file_size"> File size in bytes.</param>
-    void infer_volume_resolution(unsigned long long file_size);
+    void infer_volume_resolution(size_t file_size);
 
     /// <summary>
     /// Read the dat textfile.

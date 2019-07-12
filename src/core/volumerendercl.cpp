@@ -33,14 +33,14 @@ static const size_t LOCAL_SIZE = 8;    // 8*8=64 is wavefront size or 2*warp siz
 
 /**
  * @brief RoundPow2
- * @param iNumber
- * @return
+ * @param n The number to round.
+ * @return The rounded number of power 2.
  */
-static unsigned int RoundPow2(unsigned int n)
+static size_t RoundPow2(size_t n)
 {
     // next highest power of 2
     // (cf: http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2)
-    unsigned int val = n - 1u;
+    size_t val = n - 1u;
     val |= val >> 1;
     val |= val >> 2;
     val |= val >> 4;
@@ -48,7 +48,7 @@ static unsigned int RoundPow2(unsigned int n)
     val |= val >> 16;
     val++;
     // previous power of 2
-    unsigned int x = val >> 1;
+    size_t x = val >> 1;
     // round to nearest of the two
     return (val - n) > (n - x) ? x : val;
 }
@@ -617,12 +617,14 @@ void VolumeRenderCL::generateBricks()
         return;
     try
     {
+        // ~64 bricks in each dim seems to be a decent tradeoff for performance across data sets
+        // possible extension: user selectable size (e.g., low-32/medium-64/high-128)
+        const size_t numBricks = 64;
+        std::array<size_t, 3> brickRes = {1, 1, 1};
         // calculate brick size
-        const uint numBricks = 64u;
-        std::array<uint, 3> brickRes = {1u, 1u, 1u};
-        brickRes.at(0) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(0) / numBricks));
-        brickRes.at(1) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(1) / numBricks));
-        brickRes.at(2) = std::max(1u, RoundPow2(_dr.properties().volume_res.at(2) / numBricks));
+        brickRes.at(0) = std::max(size_t(1), RoundPow2(_dr.properties().volume_res.at(0) / numBricks));
+        brickRes.at(1) = std::max(size_t(1), RoundPow2(_dr.properties().volume_res.at(1) / numBricks));
+        brickRes.at(2) = std::max(size_t(1), RoundPow2(_dr.properties().volume_res.at(2) / numBricks));
 
         cl_float3 brickResF = {{_dr.properties().volume_res.at(0) / float(brickRes.at(0)),
                                 _dr.properties().volume_res.at(1) / float(brickRes.at(1)),
@@ -630,10 +632,10 @@ void VolumeRenderCL::generateBricks()
         _raycast_params.brickRes = brickResF;
         setRaycastArgs();
 
-        std::array<uint, 3> bricksTexSize = {1u, 1u, 1u};
-        bricksTexSize.at(0) = uint(ceil(double(brickResF.x)));
-        bricksTexSize.at(1) = uint(ceil(double(brickResF.y)));
-        bricksTexSize.at(2) = uint(ceil(double(brickResF.z)));
+        std::array<size_t, 3> bricksTexSize = {1, 1, 1};
+        bricksTexSize.at(0) = size_t(ceil(double(brickResF.x)));
+        bricksTexSize.at(1) = size_t(ceil(double(brickResF.y)));
+        bricksTexSize.at(2) = size_t(ceil(double(brickResF.z)));
 
         // set memory object
         cl::ImageFormat format;
@@ -800,6 +802,8 @@ size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeFileP
     std::partial_sum(prefixSum.begin(), prefixSum.end(), prefixSum.begin());
     setTffPrefixSum(prefixSum);
 
+    generateBricks();
+
     this->_volLoaded = true;
     return _dr.data().size();
 }
@@ -819,10 +823,10 @@ bool VolumeRenderCL::hasData() const
  * @brief VolumeRenderCL::getResolution
  * @return
  */
-const std::array<unsigned int, 4> VolumeRenderCL::getResolution() const
+const std::array<size_t, 4> VolumeRenderCL::getResolution() const
 {
     if (!_dr.has_data())
-        return std::array<unsigned int, 4> {{0, 0, 0, 1}};
+        return std::array<size_t, 4> {{0, 0, 0, 1}};
     return _dr.properties().volume_res;
 }
 
@@ -874,7 +878,6 @@ void VolumeRenderCL::setTransferFunction(std::vector<unsigned char> &tff)
         cl_mem_flags flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
         // divide size by 4 because of RGBA channels
         _tffMem = cl::Image1D(_contextCL, flags, format, tff.size() / 4, tff.data());
-        generateBricks();
 
         std::vector<unsigned int> prefixSum;
         // copy only alpha values (every fourth element)
@@ -1122,8 +1125,8 @@ const std::string VolumeRenderCL::getCurrentDeviceName()
  */
 void VolumeRenderCL::createEnvironmentMap(const std::string &file_name)
 {
-    unsigned int width = 2048;
-    unsigned int height = 1024;
+    unsigned int width = 2048u;
+    unsigned int height = 1024u;
     cl::ImageFormat format;
     format.image_channel_order = CL_RGBA;
     format.image_channel_data_type = CL_FLOAT;

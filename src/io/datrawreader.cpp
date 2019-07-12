@@ -37,6 +37,7 @@
 #include <omp.h>
 
 typedef unsigned char uchar;
+typedef unsigned short ushort;
 
 /*
  * DatRawReader::read_files
@@ -156,13 +157,13 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
                 if (s.find("ObjectFileName") == std::string::npos)
                     _prop.raw_file_names.push_back(s);
             }
-            _prop.volume_res.at(3) = static_cast<unsigned int>(_prop.raw_file_names.size());
+            _prop.volume_res.at(3) = size_t(_prop.raw_file_names.size());
         }
         else if (name.find("Resolution") != std::string::npos && l.size() > 3u)
         {
-            for (size_t i = 1; i < std::min(l.size(), static_cast<size_t>(5)); ++i)
+            for (size_t i = 1; i < std::min(l.size(), size_t(5)); ++i)
             {
-                _prop.volume_res.at(i - 1) = static_cast<unsigned int>(std::stoi(l.at(i)));
+                _prop.volume_res.at(i - 1) = size_t(std::stoi(l.at(i)));
             }
         }
         else if (name.find("SliceThickness") != std::string::npos && l.size() > 3u)
@@ -197,7 +198,7 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
         else if ((   name.find("TimeSeries") != std::string::npos
                      || name.find("TimeSteps")  != std::string::npos) && l.size() > 1u)
         {
-            _prop.volume_res.at(3) = static_cast<unsigned int>(std::stoi(l.at(1)));
+            _prop.volume_res.at(3) = size_t(std::stoi(l.at(1)));
         }
         else if (name.find("Endianness") != std::string::npos && l.size() > 1u)
         {
@@ -264,7 +265,7 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
 template <class T>
 inline static void endswap(T *objp)
 {
-    unsigned char *memp = reinterpret_cast<unsigned char*>(objp);
+    uchar *memp = reinterpret_cast<uchar*>(objp);
     std::reverse(memp, memp + sizeof(T));
 }
 
@@ -273,7 +274,7 @@ inline static void endswap(T *objp)
  * @param dataset
  * @return minimum
  */
-static float getMaximumUshort(const std::vector<unsigned short> &dataset)
+static float getMaximumUshort(const std::vector<ushort> &dataset)
 {
     float maximum = std::numeric_limits<float>::min();
 #if _OPENMP >= 201107
@@ -296,7 +297,7 @@ static float getMinimum(const std::vector<char> &dataset)
     #pragma omp parallel for reduction(min:minimum)
 #endif
     for (size_t i = 0; i < dataset.size(); ++i)
-        minimum = std::min(minimum, float(static_cast<unsigned char>(dataset.at(i))));
+        minimum = std::min(minimum, float(static_cast<uchar>(dataset.at(i))));
     return minimum;
 }
 
@@ -394,7 +395,7 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
         }
         else if (_prop.format == USHORT)
         {
-            std::vector<unsigned short> ushortdata(_prop.raw_file_size / sizeof(unsigned short));
+            std::vector<ushort> ushortdata(_prop.raw_file_size / sizeof(ushort));
             is.read(reinterpret_cast<char*>(ushortdata.data()),
                     static_cast<std::streamsize>(_prop.raw_file_size));
             _prop.min_value = 0.f;      // getMinimum(raw_timestep);
@@ -406,8 +407,8 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
 #endif
             for (size_t i = 0; i < ushortdata.size(); ++i)
             {
-                float stretch = std::numeric_limits<unsigned short>::max()/float(_prop.max_value);
-                ushortdata.at(i) = static_cast<unsigned short>(round(ushortdata.at(i)*stretch));
+                float stretch = std::numeric_limits<ushort>::max()/float(_prop.max_value);
+                ushortdata.at(i) = static_cast<ushort>(round(ushortdata.at(i)*stretch));
                 histo[size_t(std::clamp(ushortdata.at(i)/256.f, 0.f, 255.f))]++;
                 char *memp = reinterpret_cast<char*>(&ushortdata.at(i));
 
@@ -450,9 +451,9 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
             && std::none_of(std::begin(_prop.volume_res),
                             std::end(_prop.volume_res), [](int i){return i == 0;}))
     {
-        size_t bytes = _raw_data.at(0).size() / (static_cast<size_t>(_prop.volume_res[0]) *
-                                                 static_cast<size_t>(_prop.volume_res[1]) *
-                                                 static_cast<size_t>(_prop.volume_res[2]));
+        size_t bytes = _raw_data.at(0).size() / (size_t(_prop.volume_res[0]) *
+                                                 size_t(_prop.volume_res[1]) *
+                                                 size_t(_prop.volume_res[2]));
         switch (bytes)
         {
         case 1:
@@ -479,21 +480,21 @@ void DatRawReader::read_raw(const std::string &raw_file_name)
 /**
  * DatRawReader::infer_volume_resolution
  */
-void DatRawReader::infer_volume_resolution(unsigned long long file_size)
+void DatRawReader::infer_volume_resolution(size_t file_size)
 {
     std::cout << "WARNING: Trying to infer volume resolution from data size, assuming equal dimensions."
               << std::endl;
 
     switch (_prop.format)
     {
-        case UCHAR:  file_size /= sizeof(unsigned char); break;
-        case USHORT: file_size /= sizeof(unsigned short); break;
+        case UCHAR:  file_size /= sizeof(uchar); break;
+        case USHORT: file_size /= sizeof(ushort); break;
         case FLOAT:  file_size /= sizeof(float); break;
         case DOUBLE: file_size /= sizeof(double); break;
         default: break;
     }
 
-    unsigned int cuberoot = static_cast<unsigned int>(std::cbrt(file_size));
+    size_t cuberoot = size_t(std::cbrt(file_size));
     _prop.volume_res.at(0) = cuberoot;
     _prop.volume_res.at(1) = cuberoot;
     _prop.volume_res.at(2) = cuberoot;
