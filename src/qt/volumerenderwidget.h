@@ -154,6 +154,10 @@ public slots:
     void enablePathtrace();
     void playInteractionSequence(const QString &fileName, bool recording = false);
     void setExtinction(const double extinction);
+    void setBrickSizeLarge();
+    void setBrickSizeMedium();
+    void setBrickSizeSmall();
+    void setBrickSizeTiny();
 signals:
     void fpsChanged(double);
     void frameSizeChanged(QSize);

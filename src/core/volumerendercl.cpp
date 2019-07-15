@@ -611,31 +611,20 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
  * @brief VolumeRenderCL::generateBricks
  * @param volumeData
  */
-void VolumeRenderCL::generateBricks()
+void VolumeRenderCL::generateBricks(const float brickDivisor)
 {
     if (!_dr.has_data())
         return;
     try
     {
-        // ~64 bricks in each dim seems to be a decent tradeoff for performance across data sets
-        // possible extension: user selectable size (e.g., low-32/medium-64/high-128)
-        const size_t numBricks = 64;
-        std::array<size_t, 3> brickRes = {1, 1, 1};
-        // calculate brick size
-        brickRes.at(0) = std::max(size_t(1), RoundPow2(_dr.properties().volume_res.at(0) / numBricks));
-        brickRes.at(1) = std::max(size_t(1), RoundPow2(_dr.properties().volume_res.at(1) / numBricks));
-        brickRes.at(2) = std::max(size_t(1), RoundPow2(_dr.properties().volume_res.at(2) / numBricks));
-
-        cl_float3 brickResF = {{_dr.properties().volume_res.at(0) / float(brickRes.at(0)),
-                                _dr.properties().volume_res.at(1) / float(brickRes.at(1)),
-                                _dr.properties().volume_res.at(2) / float(brickRes.at(2))}};
-        _raycast_params.brickRes = brickResF;
+        _raycast_params.brickCountF = {{_dr.properties().volume_res.at(0) / brickDivisor,
+                                        _dr.properties().volume_res.at(1) / brickDivisor,
+                                        _dr.properties().volume_res.at(2) / brickDivisor}};
         setRaycastArgs();
-
         std::array<size_t, 3> bricksTexSize = {1, 1, 1};
-        bricksTexSize.at(0) = size_t(ceil(double(brickResF.x)));
-        bricksTexSize.at(1) = size_t(ceil(double(brickResF.y)));
-        bricksTexSize.at(2) = size_t(ceil(double(brickResF.z)));
+        bricksTexSize.at(0) = size_t(ceilf(_raycast_params.brickCountF.x));
+        bricksTexSize.at(1) = size_t(ceilf(_raycast_params.brickCountF.y));
+        bricksTexSize.at(2) = size_t(ceilf(_raycast_params.brickCountF.z));
 
         // set memory object
         cl::ImageFormat format;
@@ -666,10 +655,10 @@ void VolumeRenderCL::generateBricks()
                                       bricksTexSize.at(1) + (lDim - bricksTexSize.at(1) % lDim),
                                       bricksTexSize.at(2) + (lDim - bricksTexSize.at(2) % lDim));
             cl::NDRange localThreads(lDim, lDim, lDim);
-//            cl::Event ndrEvt;
             _queueCL.enqueueNDRangeKernel(_genBricksKernel, cl::NullRange,
-                                          globalThreads, localThreads); //, nullptr, &ndrEvt);
+                                          globalThreads, localThreads);
             _queueCL.finish();
+            // profiling
 //            cl_ulong start = 0;
 //            cl_ulong end = 0;
 //            ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);

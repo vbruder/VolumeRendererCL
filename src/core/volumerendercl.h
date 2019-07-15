@@ -72,7 +72,7 @@ public:
         cl_uint contours = 0;      // bool
         cl_uint aerial = 0;        // bool
 
-        cl_float3 brickRes = {{1,1,1}};
+        cl_float3 brickCountF = {{1.f, 1.f, 1.f}};
     } raycast_params;
 
     typedef struct tag_pathtrace_params
@@ -355,13 +355,13 @@ public:
      */
     void setTimestep(const size_t t);
 
-private:
     /**
      * @brief Generate coarse grained volume bricks that can be used for ESS.
-     * @param volumeData
+     * @param brickCount The size (in each dimension) of bricks to generate. Defaults to 8^3.
      */
-    void generateBricks();
+    void generateBricks(const float brickCount = 8.f);
 
+private:
     /**
      * @brief Calculate the scaling vector for the volume data.
      */

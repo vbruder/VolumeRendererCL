@@ -779,7 +779,7 @@ __kernel void volumeRender(  __read_only image3d_t volData
         {
             uint prefixMin = read_imageui(tffPrefix, nearestSmp, minMaxDensity.x).x;
             uint prefixMax = read_imageui(tffPrefix, nearestSmp, minMaxDensity.y).x;
-            if (prefixMin == prefixMax)
+            if (prefixMin == prefixMax) // no change in prefix sum means whole brick is transparent
             {
                 t = t_exit;
                 continue;

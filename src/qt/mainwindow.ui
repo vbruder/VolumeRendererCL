@@ -96,6 +96,15 @@
     <property name="title">
      <string>Rendering</string>
     </property>
+    <widget class="QMenu" name="menuBrick_size">
+     <property name="title">
+      <string>Brick size</string>
+     </property>
+     <addaction name="actionLarge"/>
+     <addaction name="actionMedium"/>
+     <addaction name="actionSmall"/>
+     <addaction name="actionTiny"/>
+    </widget>
     <addaction name="actionSet_background_color"/>
     <addaction name="actionLoad_environment_map"/>
     <addaction name="separator"/>
@@ -103,8 +112,8 @@
     <addaction name="separator"/>
     <addaction name="actionObjectESS"/>
     <addaction name="actionImageESS"/>
-    <addaction name="separator"/>
     <addaction name="actionShow_skipped"/>
+    <addaction name="menuBrick_size"/>
    </widget>
    <widget class="QMenu" name="menuRecording">
     <property name="title">
@@ -907,6 +916,44 @@
     <string>Clipping panel</string>
    </property>
   </action>
+  <action name="actionLarge">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Large     (16³)</string>
+   </property>
+  </action>
+  <action name="actionMedium">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Medium (12³)</string>
+   </property>
+  </action>
+  <action name="actionSmall">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Small     (  8³)</string>
+   </property>
+  </action>
+  <action name="actionTiny">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Tiny        (  4³)</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -1226,7 +1273,4 @@
    </hints>
   </connection>
  </connections>
- <buttongroups>
-  <buttongroup name="buttonGroup"/>
- </buttongroups>
 </ui>

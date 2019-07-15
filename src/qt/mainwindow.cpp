@@ -37,6 +37,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QInputDialog>
+#include <QActionGroup>
 
 /**
  * @brief MainWindow::MainWindow
@@ -115,6 +116,22 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::setImgEss);
     connect(ui->actionShow_skipped, &QAction::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setShowEss);
+    // brick size selection group
+    QActionGroup *brickSizeGroup = new QActionGroup(this);
+    brickSizeGroup->setExclusive(true);
+    connect(ui->actionLarge, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setBrickSizeLarge);
+    brickSizeGroup->addAction(ui->actionLarge);
+    connect(ui->actionMedium, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setBrickSizeMedium);
+    brickSizeGroup->addAction(ui->actionMedium);
+    connect(ui->actionSmall, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setBrickSizeSmall);
+    brickSizeGroup->addAction(ui->actionSmall);
+    connect(ui->actionTiny, &QAction::triggered,
+            ui->volumeRenderWidget, &VolumeRenderWidget::setBrickSizeTiny);
+    brickSizeGroup->addAction(ui->actionTiny);
+
     // menu - about
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
 

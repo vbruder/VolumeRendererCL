@@ -1365,6 +1365,41 @@ void VolumeRenderWidget::setShowEss(const bool showEss)
     this->updateView();
 }
 
+/**
+ * @brief VolumeRenderWidget::setBrickSizeLow
+ */
+void VolumeRenderWidget::setBrickSizeLarge()
+{
+    _volumerender.generateBricks(16.f);
+    this->updateView();
+}
+
+/**
+ * @brief VolumeRenderWidget::setBrickSizeMedium
+ */
+void VolumeRenderWidget::setBrickSizeMedium()
+{
+    _volumerender.generateBricks(12.f);
+    this->updateView();
+}
+
+/**
+ * @brief VolumeRenderWidget::setBrickSizeMedium
+ */
+void VolumeRenderWidget::setBrickSizeSmall()
+{
+    _volumerender.generateBricks(8.f);
+    this->updateView();
+}
+
+/**
+ * @brief VolumeRenderWidget::setBrickSizeHigh
+ */
+void VolumeRenderWidget::setBrickSizeTiny()
+{
+    _volumerender.generateBricks(4.f);
+    this->updateView();
+}
 
 /**
  * @brief VolumeRenderWidget::setBackgroundColor
