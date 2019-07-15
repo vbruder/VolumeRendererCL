@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     if (QOpenGLContext::openGLModuleType() == QOpenGLContext::LibGL)
     {
         fmt.setVersion(3, 3);
-        fmt.setProfile(QSurfaceFormat::CompatibilityProfile);
+        fmt.setProfile(QSurfaceFormat::CoreProfile);
     }
     else
     {
