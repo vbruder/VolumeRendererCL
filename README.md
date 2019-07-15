@@ -23,10 +23,10 @@ However, I'm trying to write clean and understandable code as well as testing on
 
 - [Qt](https://www.qt.io) 5.12 or later for the GUI.
 - [CMake](https://cmake.org) 3.9 or later for building.
-- C++17 compiler
+- C++17 compiler.
 - OpenCL 1.2 (capable device & drivers, headers, [C++ bindings](https://github.com/KhronosGroup/OpenCL-CLHPP/releases))
-- OpenGL for dispaying the texture generated with OpenCL
-- OpenMP (recommended for faster data loading times)
+- OpenGL 3.3 or later for dispaying the texture generated with OpenCL.
+- OpenMP 2.0 or later (3.1 or later recommended for faster loading times).
 
 ## Volume data ##
 
