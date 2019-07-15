@@ -475,9 +475,10 @@ void MainWindow::showAboutDialog()
 {
     QMessageBox::about(this, "About VolumeRendererCL",
     "<b>OpenCL Volume Renderer</b><br><br>\
-    Check out the \
+    An interactive, cross platform volume renderer based on the OpenCL compute API. \
+    <br>Check out the \
     <a href='https://github.com/vbruder/VolumeRendererCL'>GitHub repository</a> \
-    for more information.<br><br>\
+    for more information and the licence.<br><br>\
     Copyright 2017-2019 Valentin Bruder. All rights reserved. <br><br>\
     The program is provided AS IS with NO WARRANTY OF ANY KIND, \
     INCLUDING THE WARRANTY OF DESIGN, MERCHANTABILITY AND FITNESS \
