@@ -524,7 +524,17 @@ DatRawReader::Properties MainWindow::showVolumePropertyDialog(const QString &fil
 {
     DatRawReader::Properties p;
 
+    // generate dat file to write to
+    QFileInfo fi = QFileInfo(fileName);
+    QFile outDatFile = QFile(fi.path() + "/" + fi.baseName() + ".dat");
+    QTextStream out;
+    if (!outDatFile.open(QIODevice::WriteOnly | QIODevice::Text))
+        qWarning() << "Could not open .dat file to write to. No .dat file will be generated.";
+    else
+        out.setDevice(&outDatFile);
     bool ok;
+
+    // user dialogs
     QStringList items;
     items << tr("UCHAR") << tr("USHORT") << tr("FLOAT");
     QString format = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
@@ -532,28 +542,48 @@ DatRawReader::Properties MainWindow::showVolumePropertyDialog(const QString &fil
     p.format = static_cast<DatRawReader::data_format>(items.indexOf(format));
 
     items.clear();
-    items << tr("Little") << tr("Big");
+    items << tr("LITTLE_ENDIAN") << tr("BIG_ENDIAN");
     QString endianness = QInputDialog::getItem(this, tr("QInputDialog::getItem()"),
-                                               tr("Endianness:"), items, 0, false, &ok);
-    p.endianness = static_cast<DatRawReader::data_endianness>(items.indexOf(endianness));
+                                               tr("Byte order:"), items, 0, false, &ok);
+    p.endianness = static_cast<DatRawReader::byte_order>(items.indexOf(endianness));
 
     qint64 fileSize = QFile(fileName).size();
     int inferredValue = infer_volume_resolution(fileSize, p.format);
-    int max3DimageSize = 16384; // TODO: query this value from the used OpenCL device
+    int max3DimageSize = 16384; // TODO: query this value from the current OpenCL device
     p.volume_res.at(0) = uint(QInputDialog::getInt(this, tr("Volume resolution in x direction"),
-                              tr("Resolution in X:"), 1, inferredValue, max3DimageSize, 1, &ok));
+                                                   tr("Resolution in X:"), 1,
+                                                   inferredValue, max3DimageSize, 1, &ok));
     p.volume_res.at(1) = uint(QInputDialog::getInt(this, tr("Volume resolution in y direction"),
-                              tr("Resolution in Y:"), 1, int(p.volume_res.at(0)), max3DimageSize, 1, &ok));
+                                                   tr("Resolution in Y:"), 1,
+                                                   int(p.volume_res.at(0)), max3DimageSize, 1, &ok));
     p.volume_res.at(2) = uint(QInputDialog::getInt(this, tr("Volume resolution in z direction"),
-                              tr("Resolution in Z:"), 1,
-                              int(fileSize/p.volume_res.at(0)/p.volume_res.at(1)), max3DimageSize, 1, &ok));
+                                                   tr("Resolution in Z:"), 1,
+                                                   int(size_t(fileSize) /
+                                                       p.volume_res.at(0)/p.volume_res.at(1)),
+                                                   max3DimageSize, 1, &ok));
 
     p.slice_thickness.at(0) = QInputDialog::getDouble(this, tr("Slice thickness in x direction"),
-                                    tr("Slice thickness in X:"), 1.0, 0.0, 100.0, 6, &ok);
+                                                      tr("Slice thickness in X:"),
+                                                      1.0, 0.0, 100.0, 6, &ok);
     p.slice_thickness.at(1) = QInputDialog::getDouble(this, tr("Slice thickness in y direction"),
-                                 tr("Slice thickness in Y:"), p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
+                                                      tr("Slice thickness in Y:"),
+                                                      p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
     p.slice_thickness.at(2) = QInputDialog::getDouble(this, tr("Slice thickness in z direction"),
-                                 tr("Slice thickness in Z:"), p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
+                                                      tr("Slice thickness in Z:"),
+                                                      p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
+    // write out the datato the file
+    if (outDatFile.isOpen())
+    {
+        out << "ObjectFileName:\t" << fi.fileName() << "\n";
+        out << "Resolution:\t\t" << p.volume_res.at(0) << " " << p.volume_res.at(1)
+            << " " << p.volume_res.at(2) << "\n";
+        out << "SliceThickness:\t" << p.slice_thickness.at(0) << " " << p.slice_thickness.at(1)
+            << " " << p.slice_thickness.at(2) << "\n";
+        out << "Format:\t\t\t" << format << "\n";
+        out << "ByteOrder:\t\t" << endianness << "\n";
+        outDatFile.close();
+        qInfo() << "Generated .dat file:" << outDatFile.fileName();
+    }
     return p;
 }
 

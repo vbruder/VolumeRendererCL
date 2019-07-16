@@ -200,9 +200,10 @@ void DatRawReader::read_dat(const std::string &dat_file_name)
         {
             _prop.volume_res.at(3) = size_t(std::stoi(l.at(1)));
         }
-        else if (name.find("Endianness") != std::string::npos && l.size() > 1u)
+        else if ((name.find("Endianness") != std::string::npos
+                 || name.find("ByteOrder") != std::string::npos) && l.size() > 1u)
         {
-            _prop.endianness = (l.at(1) == "LITTLE") ? LITTLE : BIG;
+            _prop.endianness = (l.at(1) == "LITTLE" || l.at(1) == "LITTLE_ENDIAN") ? LITTLE : BIG;
         }
 
     }

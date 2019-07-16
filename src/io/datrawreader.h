@@ -47,7 +47,7 @@ public:
         , UNKNOWN_FORMAT
     };
 
-    enum data_endianness
+    enum byte_order
     {
           LITTLE = 0
         , BIG
@@ -65,7 +65,7 @@ public:
         std::array<size_t, 4> volume_res = {{0, 0, 0, 1}};     // x, y, z, t
         std::array<double, 3> slice_thickness = {{1.0, 1.0, 1.0}};
         data_format format = UNKNOWN_FORMAT;
-        data_endianness endianness = LITTLE;
+        byte_order endianness = LITTLE;
         std::string node_file_name = "";
         std::string image_channel_order = "R";  // TODO: change to enum?
         unsigned int time_series = {1u};
