@@ -3,7 +3,7 @@
  *
  * \author Valentin Bruder
  *
- * \copyright Copyright (C) 2018 Valentin Bruder
+ * \copyright Copyright (C) 2018-2019 Valentin Bruder
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -102,7 +102,6 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->volumeRenderWidget, &VolumeRenderWidget::resetCam);
     connect(ui->actionShowOverlay, &QAction::toggled,
             ui->volumeRenderWidget, &VolumeRenderWidget::setShowOverlay);
-//    connect(ui->actionViewClipping, &QAction::toggled, );
     // menu - rendering
     connect(ui->actionLoad_environment_map, &QAction::triggered,
             this, &MainWindow::loadEnvironmentMap);
@@ -222,7 +221,6 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-
 /**
  * @brief MainWindow::closeEvent
  * @param event
@@ -233,7 +231,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
     event->accept();
 }
 
-
+/**
+ * @brief MainWindow::keyPressEvent
+ * @param event
+ */
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     float factor = 0.01f;
@@ -242,19 +243,30 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
     switch (event->key())
     {
-        case Qt::Key_Up:
-        case Qt::Key_W: ui->volumeRenderWidget->updateView(+0.000f,-factor); break;
-        case Qt::Key_Left:
-        case Qt::Key_A: ui->volumeRenderWidget->updateView(-factor, 0.000f); break;
-        case Qt::Key_Down:
-        case Qt::Key_S: ui->volumeRenderWidget->updateView(+0.000f,+factor); break;
-        case Qt::Key_Right:
-        case Qt::Key_D: ui->volumeRenderWidget->updateView(+factor, 0.000f); break;
-        // TODO: zoom
+    case Qt::Key_Up:
+    case Qt::Key_W:     ui->volumeRenderWidget->updateView(+0.000f,-factor); break;
+    case Qt::Key_Left:
+    case Qt::Key_A:     ui->volumeRenderWidget->updateView(-factor, 0.000f); break;
+    case Qt::Key_Down:
+    case Qt::Key_S:     ui->volumeRenderWidget->updateView(+0.000f,+factor); break;
+    case Qt::Key_Right:
+    case Qt::Key_D:     ui->volumeRenderWidget->updateView(+factor, 0.000f); break;
+    case Qt::Key_Plus:  ui->volumeRenderWidget->updateTranslation(QVector3D(0, 0, +factor*8.f)); break;
+    case Qt::Key_Minus: ui->volumeRenderWidget->updateTranslation(QVector3D(0, 0, -factor*8.f)); break;
+    }
+    // translation with numpad keys
+    if (event->modifiers() & Qt::KeypadModifier)
+    {
+        switch (event->key())
+        {
+        case Qt::Key_2: ui->volumeRenderWidget->updateTranslation(QVector3D(0, -factor, 0)); break;
+        case Qt::Key_4: ui->volumeRenderWidget->updateTranslation(QVector3D(-factor, 0, 0)); break;
+        case Qt::Key_6: ui->volumeRenderWidget->updateTranslation(QVector3D(+factor, 0, 0)); break;
+        case Qt::Key_8: ui->volumeRenderWidget->updateTranslation(QVector3D(0, +factor, 0)); break;
+        }
     }
     event->accept();
 }
-
 
 /**
  * @brief MainWindow::showEvent
@@ -265,7 +277,6 @@ void MainWindow::showEvent(QShowEvent *event)
     ui->transferFunctionEditor->resetTransferFunction();
     event->accept();
 }
-
 
 /**
  * @brief MainWindow::writeSettings
@@ -282,7 +293,6 @@ void MainWindow::writeSettings()
     _settings->endGroup();
 }
 
-
 /**
  * @brief MainWindow::readSettings
  */
@@ -298,7 +308,6 @@ void MainWindow::readSettings()
     _settings->endGroup();
 }
 
-
 /**
  * @brief MainWindow::setVolumeData
  * @param fileName
@@ -308,7 +317,6 @@ void MainWindow::setVolumeData(const DatRawReader::Properties volumeFileProps)
     ui->volumeRenderWidget->setVolumeData(volumeFileProps);
     ui->volumeRenderWidget->updateView();
 }
-
 
 /**
  * @brief MainWindow::updateTransferFunction
@@ -559,7 +567,7 @@ bool MainWindow::readVolumeFile(const QUrl &url)
     QFileInfo finf(url.fileName());
     QString fileName = url.path();
 #ifdef _WIN32
-    // remove leading / if present (windows)
+    // remove leading / if present (Windows)
     if (fileName.startsWith('/'))
         fileName.remove(0, 1);
 #endif

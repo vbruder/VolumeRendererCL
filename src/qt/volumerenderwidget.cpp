@@ -1116,6 +1116,23 @@ void VolumeRenderWidget::updateViewMatrix()
     }
 }
 
+void VolumeRenderWidget::logView()
+{
+    QString s;
+    s += QString::number(_timer.elapsed());
+    s += "; camera; ";
+    s += QString::number(double(_rotQuat.toVector4D().w())) + " ";
+    s += QString::number(double(_rotQuat.x())) + " "
+                                + QString::number(double(_rotQuat.y())) + " ";
+    s += QString::number(double(_rotQuat.z())) + ", ";
+
+    s += QString::number(double(_translation.x())) + " "
+                                + QString::number(double(_translation.y())) + " ";
+    s += QString::number(double(_translation.z())) + "\n";
+
+    logInteraction(s);
+}
+
 /**
  * @brief update camera view
  * @param dx
@@ -1132,23 +1149,20 @@ void VolumeRenderWidget::updateView(const float dx, const float dy)
     if (_logView)
         recordViewConfig();
 	if (_logInteraction)
-	{
-		QString s;
-		s += QString::number(_timer.elapsed());
-		s += "; camera; ";
-        s += QString::number(double(_rotQuat.toVector4D().w())) + " ";
-        s += QString::number(double(_rotQuat.x())) + " "
-                                    + QString::number(double(_rotQuat.y())) + " ";
-        s += QString::number(double(_rotQuat.z())) + ", ";
-
-        s += QString::number(double(_translation.x())) + " "
-                                    + QString::number(double(_translation.y())) + " ";
-        s += QString::number(double(_translation.z())) + "\n";
-
-		logInteraction(s);
-	}
+        logView();
 }
 
+/**
+ * @brief VolumeRenderWidget::updateZoom
+ * @param zoom
+ */
+void VolumeRenderWidget::updateTranslation(const QVector3D translation)
+{
+    _translation = (_translation - translation);
+    // limit translation to origin, otherwise camera setup breaks (flips)
+    _translation.setZ(qMax(0.01f, _translation.z()));
+    updateView();
+}
 
 /**
  * @brief VolumeRenderWidget::mouseMoveEvent

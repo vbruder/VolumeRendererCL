@@ -158,6 +158,7 @@ public slots:
     void setBrickSizeMedium();
     void setBrickSizeSmall();
     void setBrickSizeTiny();
+    void updateTranslation(const QVector3D translation);
 signals:
     void fpsChanged(double);
     void frameSizeChanged(QSize);
@@ -206,6 +207,12 @@ private:
      * @param line
      */
     void setSequenceStep(QString line);
+
+    /**
+     * @brief logView
+     */
+    void logView();
+
 
     // -------Member variables--------
     //
