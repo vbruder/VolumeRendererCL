@@ -48,12 +48,13 @@ MainWindow::MainWindow(QWidget *parent) :
   , ui(new Ui::MainWindow)
   , _fileName("No volume data loaded yet.")
 {
+    // configuration for settings
     QCoreApplication::setOrganizationName("VISUS");
     QCoreApplication::setOrganizationDomain("www.visus.uni-stuttgart.de");
     QCoreApplication::setApplicationName("VolumeRaycasterCL");
-    _settings = new QSettings();
 
-    setAcceptDrops( true );
+    setAcceptDrops(true);
+
     ui->setupUi(this);
     ui->gbTimeSeries->setVisible(false);
     connect(ui->volumeRenderWidget, &VolumeRenderWidget::timeSeriesLoaded,
@@ -130,7 +131,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionTiny, &QAction::triggered,
             ui->volumeRenderWidget, &VolumeRenderWidget::setBrickSizeTiny);
     brickSizeGroup->addAction(ui->actionTiny);
-
     // menu - about
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
 
@@ -186,7 +186,7 @@ MainWindow::MainWindow(QWidget *parent) :
             ui->colorWheel, &colorwidgets::ColorWheel::setColor);
     connect(ui->colorWheel, &colorwidgets::ColorWheel::colorChanged,
             ui->transferFunctionEditor, &TransferFunctionWidget::setColorSelected);
-    connect(ui->cbLog, &QCheckBox::toggled, this, &MainWindow::updateHistogram);
+    connect(ui->chbLog, &QCheckBox::toggled, this, &MainWindow::updateHistogram);
     connect(ui->sldTimeStep, &QSlider::valueChanged, this, &MainWindow::updateHistogram);
     // clipping sliders
     connect(ui->sldClipBack, &QSlider::valueChanged, this, &MainWindow::updateBBox);
@@ -216,9 +216,6 @@ MainWindow::MainWindow(QWidget *parent) :
  */
 MainWindow::~MainWindow()
 {
-    delete _watcher;
-    delete _settings;
-    delete ui;
 }
 
 /**
@@ -283,14 +280,15 @@ void MainWindow::showEvent(QShowEvent *event)
  */
 void MainWindow::writeSettings()
 {
-    _settings->beginGroup("MainWindow");
-    _settings->setValue("geometry", saveGeometry());
-    _settings->setValue("windowState", saveState());
-    _settings->endGroup();
+    QSettings settings;
+    settings.beginGroup("MainWindow");
+    settings.setValue("geometry", saveGeometry());
+    settings.setValue("windowState", saveState());
+    settings.endGroup();
 
-    _settings->beginGroup("Settings");
+    settings.beginGroup("Settings");
     // TODO
-    _settings->endGroup();
+    settings.endGroup();
 }
 
 /**
@@ -298,14 +296,15 @@ void MainWindow::writeSettings()
  */
 void MainWindow::readSettings()
 {
-    _settings->beginGroup("MainWindow");
-    restoreGeometry(_settings->value("geometry").toByteArray());
-    restoreState(_settings->value("windowState").toByteArray());
-    _settings->endGroup();
+    QSettings settings;
+    settings.beginGroup("MainWindow");
+    restoreGeometry(settings.value("geometry").toByteArray());
+    restoreState(settings.value("windowState").toByteArray());
+    settings.endGroup();
 
-    _settings->beginGroup("Settings");
+    settings.beginGroup("Settings");
     // todo
-    _settings->endGroup();
+    settings.endGroup();
 }
 
 /**
@@ -376,13 +375,14 @@ void MainWindow::nextTimestep()
  */
 void MainWindow::loadEnvironmentMap()
 {
+    QSettings settings;
     QFileDialog dialog;
-    QString defaultPath = _settings->value( "LastEnvironmentFile" ).toString();
+    QString defaultPath = settings.value( "LastEnvironmentFile" ).toString();
     QString pickedFile = dialog.getOpenFileName(this, tr("Load environment map file"),
                                                 defaultPath, tr("HDR files (*.hdr)"));
     if (pickedFile.isEmpty())
         return;
-    _settings->setValue( "LastEnvironmentFile", pickedFile );
+    settings.setValue( "LastEnvironmentFile", pickedFile );
 
     ui->volumeRenderWidget->setEnvironmentMap(pickedFile);
 //    QFile loadFile(pickedFile);
@@ -398,13 +398,14 @@ void MainWindow::loadEnvironmentMap()
  */
 void MainWindow::loadCamState()
 {
+    QSettings settings;
     QFileDialog dialog;
-    QString defaultPath = _settings->value( "LastStateFile" ).toString();
+    QString defaultPath = settings.value( "LastStateFile" ).toString();
     QString pickedFile = dialog.getOpenFileName(this, tr("Load state"),
                                                 defaultPath, tr("JSON files (*.json)"));
     if (pickedFile.isEmpty())
         return;
-    _settings->setValue( "LastStateFile", pickedFile );
+    settings.setValue( "LastStateFile", pickedFile );
 
     QFile loadFile(pickedFile);
     if (!loadFile.open(QIODevice::ReadOnly))
@@ -417,23 +418,42 @@ void MainWindow::loadCamState()
     QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
     QJsonObject json = loadDoc.object();
 
+    // technique
+    if (json.contains("rayCasting") && json["rayCasting"].isBool())
+        ui->rbRaycast->setChecked(json["rayCasting"].toBool());
+    if (json.contains("pathTracing") && json["pathTracing"].isBool())
+        ui->rbPathtrace->setChecked(json["pathTracing"].toBool());
+    // resolution and lighting
     if (json.contains("imgResFactor") && json["imgResFactor"].isDouble())
-            ui->dsbImgSampling->setValue(json["imgResFactor"].toDouble());
+        ui->dsbImgSampling->setValue(json["imgResFactor"].toDouble());
     if (json.contains("rayStepSize") && json["rayStepSize"].isDouble())
-            ui->dsbSamplingRate->setValue(json["rayStepSize"].toDouble());
-
+        ui->dsbSamplingRate->setValue(json["rayStepSize"].toDouble());
+    if (json.contains("extinction") && json["extinction"].isDouble())
+        ui->dsbExtinction->setValue(json["extinction"].toDouble());
+    if (json.contains("lighting"))
+        ui->cbIllum->setCurrentIndex(json["lighting"].toInt(1));
+    // flags
     if (json.contains("useLerp") && json["useLerp"].isBool())
-            ui->actionInterpolation->setChecked(json["useLerp"].toBool());
+        ui->actionInterpolation->setChecked(json["useLerp"].toBool());
     if (json.contains("useAO") && json["useAO"].isBool())
-            ui->chbAmbientOcclusion->setChecked(json["useAO"].toBool());
+        ui->chbAmbientOcclusion->setChecked(json["useAO"].toBool());
     if (json.contains("showContours") && json["showContours"].isBool())
-            ui->chbContours->setChecked(json["showContours"].toBool());
+        ui->chbContours->setChecked(json["showContours"].toBool());
     if (json.contains("useAerial") && json["useAerial"].isBool())
-            ui->chbAerial->setChecked(json["useAerial"].toBool());
+        ui->chbAerial->setChecked(json["useAerial"].toBool());
     if (json.contains("showBox") && json["showBox"].isBool())
-            ui->actionShow_skipped->setChecked(json["showBox"].toBool());
+        ui->actionShow_skipped->setChecked(json["showBox"].toBool());
     if (json.contains("useOrtho") && json["useOrtho"].isBool())
-            ui->chbOrtho->setChecked(json["useOrtho"].toBool());
+        ui->chbOrtho->setChecked(json["useOrtho"].toBool());
+    if (json.contains("continuedRendering") && json["continuedRendering"].isBool())
+        ui->chbContRendering->setChecked(json["continuedRendering"].toBool());
+    if (json.contains("gradientBackground") && json["gradientBackground"].isBool())
+        ui->chbGradient->setChecked(json["gradientBackground"].toBool());
+    // transfer function
+    if (json.contains("tffInterpolation"))
+        ui->cbTffInterpolation->setCurrentIndex(json["tffInterpolation"].toInt());
+    if (json.contains("tffLogScale") && json["tffLogScale"].isBool())
+        ui->chbLog->setChecked(json["tffLogScale"].toBool());
     // camera paramters
     ui->volumeRenderWidget->read(json);
 }
@@ -443,13 +463,14 @@ void MainWindow::loadCamState()
  */
 void MainWindow::saveCamState()
 {
+    QSettings settings;
     QFileDialog dialog;
-    QString defaultPath = _settings->value( "LastStateFile" ).toString();
+    QString defaultPath = settings.value( "LastStateFile" ).toString();
     QString pickedFile = dialog.getSaveFileName(this, tr("Save State"),
                                                 defaultPath, tr("JSON files (*.json)"));
     if (pickedFile.isEmpty())
         return;
-    _settings->setValue( "LastStateFile", pickedFile );
+    settings.setValue( "LastStateFile", pickedFile );
 
     QFile saveFile(pickedFile);
     if (!saveFile.open(QIODevice::WriteOnly))
@@ -459,9 +480,15 @@ void MainWindow::saveCamState()
     }
 
     QJsonObject stateObject;
+    // technique
+    stateObject["rayCasting"] = ui->rbRaycast->isChecked();
+    stateObject["pathTracing"] = ui->rbPathtrace->isChecked();
     // resolution
     stateObject["imgResFactor"] = ui->dsbImgSampling->value();
     stateObject["rayStepSize"] = ui->dsbSamplingRate->value();
+    stateObject["extinction"] = ui->dsbExtinction->value();
+    // lighting
+    stateObject["lighting"] = ui->cbIllum->currentIndex();
     // rendering flags
     stateObject["useLerp"] = ui->actionInterpolation->isChecked();
     stateObject["useAO"] = ui->chbAmbientOcclusion->isChecked();
@@ -469,6 +496,11 @@ void MainWindow::saveCamState()
     stateObject["useAerial"] = ui->chbAerial->isChecked();
     stateObject["showBox"] = ui->actionShow_skipped->isChecked();
     stateObject["useOrtho"] = ui->chbOrtho->isChecked();
+    stateObject["continuedRendering"] = ui->chbContRendering->isChecked();
+    stateObject["gradientBackground"] = ui->chbGradient->isChecked();
+    // tff
+    stateObject["tffInterpolation"] = ui->cbTffInterpolation->currentIndex();
+    stateObject["tffLogScale"] = ui->chbLog->isChecked();
     // camera parameters
     ui->volumeRenderWidget->write(stateObject);
 
@@ -571,18 +603,26 @@ DatRawReader::Properties MainWindow::showVolumePropertyDialog(const QString &fil
     p.slice_thickness.at(2) = QInputDialog::getDouble(this, tr("Slice thickness in z direction"),
                                                       tr("Slice thickness in Z:"),
                                                       p.slice_thickness.at(0), 0.0, 100.0, 6, &ok);
-    // write out the datato the file
+    // write out the data to a .dat file if requested
     if (outDatFile.isOpen())
     {
-        out << "ObjectFileName:\t" << fi.fileName() << "\n";
-        out << "Resolution:\t\t" << p.volume_res.at(0) << " " << p.volume_res.at(1)
-            << " " << p.volume_res.at(2) << "\n";
-        out << "SliceThickness:\t" << p.slice_thickness.at(0) << " " << p.slice_thickness.at(1)
-            << " " << p.slice_thickness.at(2) << "\n";
-        out << "Format:\t\t\t" << format << "\n";
-        out << "ByteOrder:\t\t" << endianness << "\n";
-        outDatFile.close();
-        qInfo() << "Generated .dat file:" << outDatFile.fileName();
+        QMessageBox msgBox;
+        msgBox.setText("Do you wish to generate a .dat file according to your selections?");
+        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+        msgBox.setDefaultButton(QMessageBox::Yes);
+        int ret = msgBox.exec();
+        if (ret == QMessageBox::Yes)
+        {
+            out << "ObjectFileName:\t" << fi.fileName() << "\n";
+            out << "Resolution:\t\t" << p.volume_res.at(0) << " " << p.volume_res.at(1)
+                << " " << p.volume_res.at(2) << "\n";
+            out << "SliceThickness:\t" << p.slice_thickness.at(0) << " " << p.slice_thickness.at(1)
+                << " " << p.slice_thickness.at(2) << "\n";
+            out << "Format:\t\t\t" << format << "\n";
+            out << "ByteOrder:\t\t" << endianness << "\n";
+            outDatFile.close();
+            qInfo() << "Generated .dat file:" << outDatFile.fileName();
+        }
     }
     return p;
 }
@@ -689,7 +729,8 @@ void MainWindow::readTff(const QString &fileName)
 void MainWindow::saveTff()
 {
     QFileDialog dia;
-    QString defaultPath = _settings->value( "LastTffFile" ).toString();
+    QSettings settings;
+    QString defaultPath = settings.value( "LastTffFile" ).toString();
     QString pickedFile = dia.getSaveFileName(
                 this, tr("Save Transfer Function"),
                 defaultPath, tr("Transfer function files (*.tff)"));
@@ -723,7 +764,8 @@ void MainWindow::saveTff()
 void MainWindow::saveRawTff()
 {
     QFileDialog dia;
-    QString defaultPath = _settings->value( "LastRawTffFile" ).toString();
+    QSettings settings;
+    QString defaultPath = settings.value( "LastRawTffFile" ).toString();
     QString pickedFile = dia.getSaveFileName(
                 this, tr("Save Transfer Function"),
                 defaultPath, tr("Transfer function files (*.tff)"));
@@ -758,7 +800,8 @@ void MainWindow::saveRawTff()
 void MainWindow::loadRawTff()
 {
     QFileDialog dia;
-    QString defaultPath = _settings->value( "LastRawTffFile" ).toString();
+    QSettings settings;
+    QString defaultPath = settings.value( "LastRawTffFile" ).toString();
     QString pickedFile = dia.getOpenFileName(
                 this, tr("Open Transfer Function"),
                 defaultPath, tr("Transfer function files (*.tff)"));
@@ -783,7 +826,7 @@ void MainWindow::loadRawTff()
         {
             qDebug() << "Could not open transfer function file " + pickedFile;
         }
-        _settings->setValue( "LastRawTffFile", pickedFile );
+        settings.setValue( "LastRawTffFile", pickedFile );
     }
 }
 
@@ -832,7 +875,7 @@ void MainWindow::updateHistogram()
     QVector<qreal> qhisto;
     for (auto &a : histo)
     {
-        if (ui->cbLog->isChecked())
+        if (ui->chbLog->isChecked())
             qhisto.push_back(log(a - minVal) / log(maxVal));
         else
             qhisto.push_back(a / maxVal);
@@ -895,14 +938,15 @@ void MainWindow::updateClippingSliders()
 void MainWindow::loadTff()
 {
     QFileDialog dia;
-    QString defaultPath = _settings->value( "LastTffFile" ).toString();
+    QSettings settings;
+    QString defaultPath = settings.value( "LastTffFile" ).toString();
     QString pickedFile = dia.getOpenFileName(
                 this, tr("Open Transfer Function"),
                 defaultPath, tr("Transfer function files (*.tff)"));
     if (!pickedFile.isEmpty())
     {
         readTff(pickedFile);
-        _settings->setValue( "LastTffFile", pickedFile );
+        settings.setValue( "LastTffFile", pickedFile );
     }
 }
 
@@ -913,7 +957,8 @@ void MainWindow::loadTff()
 void MainWindow::openVolumeFile()
 {
     QFileDialog dialog;
-    QString defaultPath = _settings->value( "LastVolumeFile" ).toString();
+    QSettings settings;
+    QString defaultPath = settings.value( "LastVolumeFile" ).toString();
     QString pickedFile = dialog.getOpenFileName(
                 this, tr("Open Volume Data"), defaultPath,
                 tr("Volume data files (*.dat); Volume raw files (*.raw); All files (*)"));
@@ -922,13 +967,13 @@ void MainWindow::openVolumeFile()
         if (!readVolumeFile(pickedFile))
         {
             QMessageBox msgBox;
-            msgBox.setIcon( QMessageBox::Critical );
-            msgBox.setText( "Error while trying to create OpenCL memory objects." );
+            msgBox.setIcon(QMessageBox::Critical);
+            msgBox.setText("Error while trying to create OpenCL memory objects.");
             msgBox.exec();
         }
         else
         {
-            _settings->setValue( "LastVolumeFile", pickedFile );
+            settings.setValue( "LastVolumeFile", pickedFile );
         }
     }
 }
@@ -986,7 +1031,8 @@ void MainWindow::chooseBackgroundColor()
 void MainWindow::playInteractionSequence()
 {
     QFileDialog dia;
-    QString defaultPath = _settings->value( "LastInteractionSequence" ).toString();
+    QSettings settings;
+    QString defaultPath = settings.value( "LastInteractionSequence" ).toString();
     QString pickedFile = dia.getOpenFileName(
                 this, tr("Open Interaction Sequence"),
                 defaultPath, tr("Interaction sequence files (*.csv)"));
@@ -998,7 +1044,7 @@ void MainWindow::playInteractionSequence()
         msgBox.setDefaultButton(QMessageBox::Yes);
         int ret = msgBox.exec();
         ui->volumeRenderWidget->playInteractionSequence(pickedFile, ret == QMessageBox::Yes);
-        _settings->setValue( "LastInteractionSequence", pickedFile );
+        settings.setValue( "LastInteractionSequence", pickedFile );
     }
 }
 

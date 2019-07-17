@@ -48,12 +48,11 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
-    ~MainWindow();
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow() override;
 
 protected slots:
     void openVolumeFile();
-
     void addProgress();
     void finishedLoading();
 
@@ -87,24 +86,19 @@ protected:
     void showEvent(QShowEvent *event) Q_DECL_OVERRIDE;
 
     DatRawReader::Properties showVolumePropertyDialog(const QString &filename);
-private:
 
+private:
     void setVolumeData(const DatRawReader::Properties volumeFileProps);
     bool readVolumeFile(const QUrl &url);
-
     void readTff(const QString &fileName);
-
     void readSettings();
     void writeSettings();
-
     void setStatusText();
     void setInterpolation(const int index);
 
     // ----- Members -----
     Ui::MainWindow *ui;
-
-    QSettings *_settings;
-    QFutureWatcher<void> *_watcher;
+    QPointer<QFutureWatcher<void> > _watcher;
     QProgressBar _progBar;
     QTimer _timer;
     QString _fileName = "";

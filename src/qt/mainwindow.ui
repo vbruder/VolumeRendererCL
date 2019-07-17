@@ -165,218 +165,6 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="0" colspan="5">
-      <widget class="QGroupBox" name="groupBox">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>210</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Rendering</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout">
-        <item row="3" column="0" colspan="5">
-         <widget class="QComboBox" name="cbIllum">
-          <property name="currentIndex">
-           <number>1</number>
-          </property>
-          <item>
-           <property name="text">
-            <string>Off</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Central differences</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Central differences &amp; transfer function</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Sobel filter</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Magnitude</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Cel shading</string>
-           </property>
-          </item>
-         </widget>
-        </item>
-        <item row="7" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbAmbientOcclusion">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="text">
-           <string>Ambient occlusion</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbContRendering">
-          <property name="text">
-           <string>Continued rendering</string>
-          </property>
-         </widget>
-        </item>
-        <item row="6" column="0" colspan="5">
-         <widget class="Line" name="line">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="8" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbOrtho">
-          <property name="text">
-           <string>Orthographic</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="lblImgSampling">
-          <property name="text">
-           <string>Image</string>
-          </property>
-         </widget>
-        </item>
-        <item row="7" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbContours">
-          <property name="text">
-           <string>Contours</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="3" colspan="2">
-         <widget class="QDoubleSpinBox" name="dsbSamplingRate">
-          <property name="decimals">
-           <number>1</number>
-          </property>
-          <property name="minimum">
-           <double>0.100000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>20.000000000000000</double>
-          </property>
-          <property name="singleStep">
-           <double>0.100000000000000</double>
-          </property>
-          <property name="value">
-           <double>1.500000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="8" column="0" colspan="2">
-         <widget class="QCheckBox" name="chbAerial">
-          <property name="text">
-           <string>Aerial perspective</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="2" colspan="3">
-         <widget class="QRadioButton" name="rbPathtrace">
-          <property name="text">
-           <string>Path tracing</string>
-          </property>
-         </widget>
-        </item>
-        <item row="13" column="2" colspan="3">
-         <widget class="QCheckBox" name="chbGradient">
-          <property name="text">
-           <string>Gradient background</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <widget class="QLabel" name="lblRaySampling">
-          <property name="text">
-           <string>Ray</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0" colspan="2">
-         <widget class="QRadioButton" name="rbRaycast">
-          <property name="text">
-           <string>Ray casting</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QDoubleSpinBox" name="dsbImgSampling">
-          <property name="minimum">
-           <double>0.010000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>8.000000000000000</double>
-          </property>
-          <property name="singleStep">
-           <double>0.010000000000000</double>
-          </property>
-          <property name="value">
-           <double>1.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0" colspan="2">
-         <widget class="QLabel" name="lblSamplingRate">
-          <property name="text">
-           <string>Sampling rate</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="2">
-         <widget class="QLabel" name="lblExtinction">
-          <property name="text">
-           <string>Extinction</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="3" colspan="2">
-         <widget class="QDoubleSpinBox" name="dsbExtinction">
-          <property name="maximum">
-           <double>9999.989999999999782</double>
-          </property>
-          <property name="stepType">
-           <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
-          </property>
-          <property name="value">
-           <double>100.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
      <item row="5" column="4">
       <widget class="QPushButton" name="pbResetTff">
        <property name="text">
@@ -482,7 +270,7 @@
       </widget>
      </item>
      <item row="5" column="3">
-      <widget class="QCheckBox" name="cbLog">
+      <widget class="QCheckBox" name="chbLog">
        <property name="text">
         <string>Log scale</string>
        </property>
@@ -508,6 +296,225 @@
          <string>Cubic</string>
         </property>
        </item>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="5">
+      <widget class="QGroupBox" name="groupBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>210</height>
+        </size>
+       </property>
+       <property name="title">
+        <string>Rendering</string>
+       </property>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="5" column="0" colspan="5">
+         <widget class="QComboBox" name="cbIllum">
+          <property name="currentIndex">
+           <number>1</number>
+          </property>
+          <item>
+           <property name="text">
+            <string>Off</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Central differences</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Central differences &amp; transfer function</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Sobel filter</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Magnitude</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Cel shading</string>
+           </property>
+          </item>
+         </widget>
+        </item>
+        <item row="15" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbGradient">
+          <property name="text">
+           <string>Gradient background</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="3" colspan="2">
+         <widget class="QDoubleSpinBox" name="dsbSamplingRate">
+          <property name="decimals">
+           <number>1</number>
+          </property>
+          <property name="minimum">
+           <double>0.100000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>20.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.100000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.500000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="0" colspan="5">
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QLabel" name="lblExtinction">
+          <property name="text">
+           <string>Extinction</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3" colspan="2">
+         <widget class="QDoubleSpinBox" name="dsbExtinction">
+          <property name="maximum">
+           <double>9999.989999999999782</double>
+          </property>
+          <property name="stepType">
+           <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+          </property>
+          <property name="value">
+           <double>100.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="9" column="0" colspan="2">
+         <widget class="QCheckBox" name="chbContours">
+          <property name="text">
+           <string>Contours</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbOrtho">
+          <property name="text">
+           <string>Orthographic</string>
+          </property>
+         </widget>
+        </item>
+        <item row="10" column="0" colspan="2">
+         <widget class="QCheckBox" name="chbAerial">
+          <property name="text">
+           <string>Aerial perspective</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="2">
+         <widget class="QLabel" name="lblRaySampling">
+          <property name="text">
+           <string>Ray</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QDoubleSpinBox" name="dsbImgSampling">
+          <property name="minimum">
+           <double>0.010000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>8.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.010000000000000</double>
+          </property>
+          <property name="value">
+           <double>1.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="2">
+         <widget class="QLabel" name="lblSamplingRate">
+          <property name="text">
+           <string>Sampling rate</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2" colspan="3">
+         <widget class="QRadioButton" name="rbPathtrace">
+          <property name="text">
+           <string>Path tracing</string>
+          </property>
+         </widget>
+        </item>
+        <item row="15" column="0" colspan="2">
+         <widget class="QCheckBox" name="chbContRendering">
+          <property name="text">
+           <string>Continued rendering</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="2">
+         <widget class="QRadioButton" name="rbRaycast">
+          <property name="text">
+           <string>Ray casting</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLabel" name="lblImgSampling">
+          <property name="text">
+           <string>Image</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="5">
+         <widget class="Line" name="line_3">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="9" column="2" colspan="3">
+         <widget class="QCheckBox" name="chbAmbientOcclusion">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Ambient occlusion</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
      </item>
     </layout>
