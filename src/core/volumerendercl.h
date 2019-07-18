@@ -177,7 +177,7 @@ public:
      * @param fileName The full path to the volume data file.
      * @return number of loaded volume time steps
      */
-    size_t loadVolumeData(const DatRawReader::Properties volumeFileProps);
+    size_t loadVolumeData(const DatRawReader::Properties volumeProps);
 
     /**
      * @brief Answers if volume data has been loaded.
@@ -203,7 +203,7 @@ public:
      * @brief Set the prefix sum of the transfer function.
      * @param tffPrefixSum The prefix sum as vector of unsigned ints.
      */
-    void setTffPrefixSum(std::vector<unsigned int> &tffPrefixSum);
+    void setTffPrefixSum(std::vector<uint> &tffPrefixSum);
 
     /**
      * @brief VolumeRenderCL::scaleVolume

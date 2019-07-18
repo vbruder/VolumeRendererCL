@@ -850,11 +850,12 @@ void MainWindow::setStatusText()
         status += QString::number(double(ui->volumeRenderWidget->getVolumeResolution().z()));
         status += "x";
         status += QString::number(double(ui->volumeRenderWidget->getVolumeResolution().w()));
-        status += " | Frame: ";
+        status += " vx";
+        status += " | Image: ";
         status += QString::number(ui->volumeRenderWidget->size().width());
         status += "x";
         status += QString::number(ui->volumeRenderWidget->size().height());
-        status += " ";
+        status += " px ";
     }
     _statusLabel.setText(status);
 }

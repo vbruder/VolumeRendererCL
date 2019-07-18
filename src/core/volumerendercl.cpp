@@ -751,21 +751,21 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
 
 /**
  * @brief VolumeRenderCL::loadVolumeData
- * @param fileName
+ * @param volumeProps The volume properties.
+ * @return The size of the loaded data.
  */
-size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeFileProps)
+size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeProps)
 {
     this->_volLoaded = false;
 
-    if (volumeFileProps.dat_file_name.empty())
-        std::cerr << "Loading raw volume data from " << volumeFileProps.raw_file_names.at(0)
-                  << std::endl;
+    if (volumeProps.dat_file_name.empty())
+        std::cout << "Loading raw volume data from " << volumeProps.raw_file_names.at(0) << std::endl;
     else
-        std::cout << "Loading volume data defined in " << volumeFileProps.dat_file_name << std::endl;
+        std::cout << "Loading volume data defined in " << volumeProps.dat_file_name << std::endl;
 
     try
     {
-        _dr.read_files(volumeFileProps);
+        _dr.read_files(volumeProps);
         std::cout << _dr.data().front().size()*_dr.data().size() << " bytes have been read from "
                   << _dr.data().size() << " file(s)." << std::endl;
         std::cout << _dr.properties().to_string() << std::endl;
@@ -776,21 +776,7 @@ size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeFileP
     {
         throw std::runtime_error(e.what());
     }
-
-    // initally, set a simple linear transfer function
-    std::vector<unsigned char> tff(1024*4, 0);
-    std::iota(tff.begin() + 3, tff.end(), 0);
-    // TODO: testing are there corner cases where this is necessary?
-//    setTransferFunction(tff);
-
-    std::vector<unsigned int> prefixSum(1024, 0);
-#pragma omp for
-    for (int i = 0; i < int(prefixSum.size()); ++i)
-        prefixSum.at(uint(i)) = uint(i)*4u;
-
-    std::partial_sum(prefixSum.begin(), prefixSum.end(), prefixSum.begin());
-    setTffPrefixSum(prefixSum);
-
+    // generate brick representation for object order empty space skipping
     generateBricks();
 
     this->_volLoaded = true;
@@ -868,10 +854,11 @@ void VolumeRenderCL::setTransferFunction(std::vector<unsigned char> &tff)
         // divide size by 4 because of RGBA channels
         _tffMem = cl::Image1D(_contextCL, flags, format, tff.size() / 4, tff.data());
 
-        std::vector<unsigned int> prefixSum;
+        std::vector<uint> prefixSum(tff.size() / 4, 0);
         // copy only alpha values (every fourth element)
-        for (size_t i = 3; i < tff.size(); i += 4)
-            prefixSum.push_back(static_cast<unsigned int>(tff.at(i)));
+        #pragma omp parallel for
+        for (int i = 3; i < int(tff.size()); i += 4)
+            prefixSum.at(i/4) = (uint(tff.at(i)));
         std::partial_sum(prefixSum.begin(), prefixSum.end(), prefixSum.begin());
         setTffPrefixSum(prefixSum);
         resetIteration();
@@ -887,7 +874,7 @@ void VolumeRenderCL::setTransferFunction(std::vector<unsigned char> &tff)
  * @brief VolumeRenderCL::setTffPrefixSum
  * @param tffPrefixSum
  */
-void VolumeRenderCL::setTffPrefixSum(std::vector<unsigned int> &tffPrefixSum)
+void VolumeRenderCL::setTffPrefixSum(std::vector<uint> &tffPrefixSum)
 {
     if (!_dr.has_data())
         return;
@@ -1058,7 +1045,6 @@ const std::vector<std::string> VolumeRenderCL::getPlatformNames()
     try
     {
         std::vector<cl::Platform> platforms;
-
         cl::Platform::get(&platforms);
         for(unsigned int i = 0; i < platforms.size(); ++i)
             names.push_back(platforms[i].getInfo<CL_PLATFORM_NAME>());

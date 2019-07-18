@@ -232,30 +232,30 @@ private:
     QMatrix4x4 _overlayModelMX;
 
     QPoint _tffRange;
-    GLuint _outTexId;
+    GLuint _outTexId = 0;
     VolumeRenderCL _volumerender;
     QEasingCurve _tffInterpol;
-    int _timestep;
+    int _timestep = 0;
 
     // global rendering flags
     QPoint _lastLocalCursorPos;
     QQuaternion _rotQuat;
     QVector3D _translation;
 
-    bool _noUpdate;
-    bool _loadingFinished;
-    bool _writeImage;
-    bool _recordVideo;
-    qint64 _imgCount;
+    bool _noUpdate = true;
+    bool _loadingFinished = false;
+    bool _writeImage = false;
+    bool _recordVideo = false;
+    qint64 _imgCount = 0;
+    double _imgSamplingRate = 1.0;
+    bool _useGL = true;
+    bool _showOverlay = true;
+    bool _logView = false;
+    bool _logInteraction = false;
+    bool _contRendering = false;
     QVector<double> _times;
-    double _imgSamplingRate;       // image oversampling rate
-    bool _useGL;
-    bool _showOverlay;
-    bool _logView;
-	bool _logInteraction;
     QString _viewLogFile;
 	QString _interactionLogFile;
-    bool _contRendering;
     QGradientStops _tffStops;
 	QElapsedTimer _timer;
     interaction_sequence _interaction;

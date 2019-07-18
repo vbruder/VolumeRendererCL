@@ -293,6 +293,8 @@ void TransferFunctionEditor::setInterpolation(const QEasingCurve::Type interpola
         _pAlphaShade->hoverPoints()->setConnectionType(HoverPoints::QuadConnection); break;
     case QEasingCurve::Linear:
         _pAlphaShade->hoverPoints()->setConnectionType(HoverPoints::LinearConnection); break;
+    default:
+        break;
     }
     _pAlphaShade->hoverPoints()->firePointChange();
     emit pointsUpdated();
