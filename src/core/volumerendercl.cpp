@@ -194,14 +194,15 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
 void VolumeRenderCL::setMemObjectsRaycast(const size_t t)
 {
     // TODO: refactor
-
     _raycastKernel.setArg(VOLUME, _volumesMem.at(t));
     _raycastKernel.setArg(BRICKS, _bricksMem.at(t));
     _raycastKernel.setArg(TFF, _tffMem);
+
     if (_useGL)
         _raycastKernel.setArg(OUTPUT, _outputMem);
     else
         _raycastKernel.setArg(OUTPUT, _outputMemNoGL);
+
     _raycastKernel.setArg(TFF_PREFIX, _tffPrefixMem);
     cl_float3 modelScale = {{_modelScale[0], _modelScale[1], _modelScale[2]}};
     _rendering_params.modelScale = modelScale;
@@ -466,7 +467,6 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
 {
     cl::ImageFormat format;
     format.image_channel_order = CL_RGBA;
-    format.image_channel_data_type = CL_UNORM_INT8;
     try
     {
         if (_useGL)
@@ -475,6 +475,7 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
         }
         else
         {
+            format.image_channel_data_type = CL_FLOAT;
             _outputMemNoGL = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY, format, width, height);
             _raycastKernel.setArg(OUTPUT, _outputMemNoGL);
         }
@@ -488,8 +489,8 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
                                    const_cast<unsigned int*>(initBuff.data()));
 
         format.image_channel_order = CL_RGBA;
-        format.image_channel_data_type = CL_UNORM_INT8;
-        _inAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_ONLY , format, width, height);
+        format.image_channel_data_type = CL_FLOAT;
+        _inAccumulate  = cl::Image2D(_contextCL, CL_MEM_READ_ONLY , format, width, height);
         _outAccumulate = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY, format, width, height);
     }
     catch (cl::Error err)
@@ -510,8 +511,8 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
     try // opencl scope
     {
         setMemObjectsRaycast(_timestep);
-        cl::NDRange globalThreads(width + (LOCAL_SIZE - width % LOCAL_SIZE), height
-                                  + (LOCAL_SIZE - height % LOCAL_SIZE));
+        cl::NDRange globalThreads(width + (LOCAL_SIZE - width  % LOCAL_SIZE),
+                                  height+ (LOCAL_SIZE - height % LOCAL_SIZE));
         cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
         cl::Event ndrEvt;
 
@@ -529,14 +530,7 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
             _inputHitMem = tmp;
         }
 
-        // swap accumulate buffers
-        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0}, {width, height, 1});
-//        cl::Image2D tmp = _outAccumulate;
-//        _outAccumulate = _inAccumulate;
-//        _inAccumulate = tmp;
-//        _raycastKernel.setArg(IN_ACCUMULATE,  (_iteration % 2) ? _outAccumulate : _inAccumulate);
-//        _raycastKernel.setArg(OUT_ACCUMULATE, (_iteration % 2) ? _inAccumulate : _outAccumulate);
-//        _iteration++;
+        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0}, {width,height,1});
         _rendering_params.iteration++;
 
         _queueCL.enqueueReleaseGLObjects(&memObj);
@@ -573,14 +567,14 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
     try // opencl scope
     {
         setMemObjectsRaycast(_timestep);
-        cl::NDRange globalThreads(width + (LOCAL_SIZE - width % LOCAL_SIZE),
-                                  height + (LOCAL_SIZE - height % LOCAL_SIZE));
+        cl::NDRange globalThreads(width + (LOCAL_SIZE - width  % LOCAL_SIZE),
+                                  height+ (LOCAL_SIZE - height % LOCAL_SIZE));
         cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
         cl::Event ndrEvt;
 
-        _queueCL.enqueueNDRangeKernel(
-                    _raycastKernel, cl::NullRange, globalThreads, localThreads, nullptr, &ndrEvt);
-        output.resize(width*height*4);
+        _queueCL.enqueueNDRangeKernel(_raycastKernel, cl::NullRange,
+                                      globalThreads, localThreads, nullptr, &ndrEvt);
+        output.resize(width * height * 4);  // RGBA
         cl::Event readEvt;
         std::array<size_t, 3> origin = {{0, 0, 0}};
         std::array<size_t, 3> region = {{width, height, 1}};
@@ -589,7 +583,11 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
                                   origin, region, 0, 0,
                                   output.data(),
                                   nullptr, &readEvt);
-        _queueCL.flush();    // global sync
+
+        // FIXME: continuus rendering without OpenGL context sharing
+//        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0}, {width,height,1});
+//        _rendering_params.iteration++;
+        _queueCL.finish();    // global sync
 
 #ifdef CL_QUEUE_PROFILING_ENABLE
         cl_ulong start = 0;

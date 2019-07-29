@@ -586,16 +586,16 @@ typedef struct tag_pathtrace_params
  * direct volume raycasting kernel
  * ===============================
  */
-__kernel void volumeRender(  __read_only image3d_t volData
-                           , __read_only image3d_t volBrickData
-                           , __read_only image1d_t tffData     // constant transfer function values
+__kernel void volumeRender(  __read_only  image3d_t volData
+                           , __read_only  image3d_t volBrickData
+                           , __read_only  image1d_t tffData    // constant transfer function values
                            , __write_only image2d_t outImg
-                           , __read_only image1d_t tffPrefix
-                           , __read_only image2d_t inAccumulate
+                           , __read_only  image1d_t tffPrefix
+                           , __read_only  image2d_t inAccumulate
                            , __write_only image2d_t outAccumulate
-                           , __read_only image2d_t inHitImg
+                           , __read_only  image2d_t inHitImg
                            , __write_only image2d_t outHitImg
-                           , __read_only image2d_t environment
+                           , __read_only  image2d_t environment
                            , const camera_params camera
                            , const rendering_params render
                            , const raycast_params raycast
