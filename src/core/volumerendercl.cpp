@@ -476,7 +476,8 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
         else
         {
             format.image_channel_data_type = CL_FLOAT;
-            _outputMemNoGL = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY, format, width, height);
+            _outputMemNoGL = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY,
+                                         format, width, height);
             _raycastKernel.setArg(OUTPUT, _outputMemNoGL);
         }
 
@@ -489,9 +490,11 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
                                    const_cast<unsigned int*>(initBuff.data()));
 
         format.image_channel_order = CL_RGBA;
-        format.image_channel_data_type = CL_FLOAT;
-        _inAccumulate  = cl::Image2D(_contextCL, CL_MEM_READ_ONLY , format, width, height);
-        _outAccumulate = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY, format, width, height);
+        format.image_channel_data_type = CL_UNORM_INT8;
+        _inAccumulate  = cl::Image2D(_contextCL, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS,
+                                     format, width, height);
+        _outAccumulate = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS,
+                                     format, width, height);
     }
     catch (cl::Error err)
     {
@@ -499,6 +502,31 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
     }
 }
 
+/**
+ * @brief VolumeRenderCL::raycast
+ * @param width
+ * @param height
+ */
+void VolumeRenderCL::raycast(const size_t width, const size_t height)
+{
+    setMemObjectsRaycast(_timestep);
+    cl::NDRange globalThreads(width + (LOCAL_SIZE - width  % LOCAL_SIZE),
+                              height+ (LOCAL_SIZE - height % LOCAL_SIZE));
+    cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
+    cl::Event ndrEvt;
+    _queueCL.enqueueNDRangeKernel(_raycastKernel, cl::NullRange,
+                                  globalThreads, localThreads, nullptr, &ndrEvt);
+    _queueCL.finish();    // global sync
+
+#ifdef CL_QUEUE_PROFILING_ENABLE
+    cl_ulong start = 0;
+    cl_ulong end = 0;
+    ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
+    ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
+    _lastExecTime = static_cast<double>(end - start)*1e-9;
+//        std::cout << "Kernel time: " << _lastExecTime << std::endl << std::endl;
+#endif
+}
 
 /**
  * @brief VolumeRenderCL::runRaycast
@@ -510,17 +538,11 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
         return;
     try // opencl scope
     {
-        setMemObjectsRaycast(_timestep);
-        cl::NDRange globalThreads(width + (LOCAL_SIZE - width  % LOCAL_SIZE),
-                                  height+ (LOCAL_SIZE - height % LOCAL_SIZE));
-        cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
-        cl::Event ndrEvt;
-
         std::vector<cl::Memory> memObj;
         memObj.push_back(_outputMem);
         _queueCL.enqueueAcquireGLObjects(&memObj);
-        _queueCL.enqueueNDRangeKernel(
-                    _raycastKernel, cl::NullRange, globalThreads, localThreads, nullptr, &ndrEvt);
+
+        raycast(width, height);
 
         if (_useImgESS)
         {
@@ -529,21 +551,10 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
             _outputHitMem = _inputHitMem;
             _inputHitMem = tmp;
         }
-
-        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0}, {width,height,1});
+        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0},
+                                  {width, height, 1});
         _rendering_params.iteration++;
-
         _queueCL.enqueueReleaseGLObjects(&memObj);
-        _queueCL.finish();    // global sync
-
-#ifdef CL_QUEUE_PROFILING_ENABLE
-        cl_ulong start = 0;
-        cl_ulong end = 0;
-        ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
-        ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-        _lastExecTime = static_cast<double>(end - start)*1e-9;
-//        std::cout << "Kernel time: " << _lastExecTime << std::endl << std::endl;
-#endif
     }
     catch (cl::Error err)
     {
@@ -566,37 +577,24 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
         return;
     try // opencl scope
     {
-        setMemObjectsRaycast(_timestep);
-        cl::NDRange globalThreads(width + (LOCAL_SIZE - width  % LOCAL_SIZE),
-                                  height+ (LOCAL_SIZE - height % LOCAL_SIZE));
-        cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
-        cl::Event ndrEvt;
+        raycast(width, height);
 
-        _queueCL.enqueueNDRangeKernel(_raycastKernel, cl::NullRange,
-                                      globalThreads, localThreads, nullptr, &ndrEvt);
         output.resize(width * height * 4);  // RGBA
         cl::Event readEvt;
         std::array<size_t, 3> origin = {{0, 0, 0}};
         std::array<size_t, 3> region = {{width, height, 1}};
+
         _queueCL.enqueueReadImage(_outputMemNoGL,
-                                  CL_TRUE,
+                                  CL_FALSE,
                                   origin, region, 0, 0,
                                   output.data(),
                                   nullptr, &readEvt);
 
         // FIXME: continuus rendering without OpenGL context sharing
-//        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0}, {width,height,1});
+//        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, origin, origin, region);
+//        _queueCL.enqueueWriteImage(_inAccumulate, CL_TRUE, origin, region, 0, 0, output.data());
 //        _rendering_params.iteration++;
-        _queueCL.finish();    // global sync
-
-#ifdef CL_QUEUE_PROFILING_ENABLE
-        cl_ulong start = 0;
-        cl_ulong end = 0;
-        ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
-        ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-        _lastExecTime = static_cast<double>(end - start)*1e-9;
-//        std::cout << "Kernel time: " << _lastExecTime << std::endl << std::endl;
-#endif
+        _queueCL.finish();
     }
     catch (cl::Error err)
     {

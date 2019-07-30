@@ -213,6 +213,11 @@ private:
      */
     void logView();
 
+    /**
+     * @brief drawScreenQuad
+     */
+    void drawScreenQuad();
+
 
     // -------Member variables--------
     //

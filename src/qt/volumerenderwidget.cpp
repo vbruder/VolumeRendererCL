@@ -33,6 +33,7 @@
 #include <QLoggingCategory>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QTime>
 
 #include <algorithm>
 
@@ -472,73 +473,77 @@ void VolumeRenderWidget::setImageSamplingRate(const double samplingRate)
 }
 
 /**
+ * @brief VolumeRenderWidget::drawScreenQuad
+ */
+void VolumeRenderWidget::drawScreenQuad()
+{
+    // clear to white to avoid getting colored borders outside the quad
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+    // draw screen quad
+    _screenQuadVao.bind();
+    _quadVbo.bind();
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+
+    // render screen quad
+    _spScreenQuad.bind();
+    _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("projMatrix"),
+                                   _screenQuadProjMX );
+    _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("mvMatrix"),
+                                   _viewMX * _modelMX );
+    _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("width"), width());
+    _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("height"), height());
+
+    _spScreenQuad.setUniformValue(_spScreenQuad.uniformLocation("outTex"), GL_TEXTURE0);
+    glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
+    _screenQuadVao.release();
+    _quadVbo.release();
+    _spScreenQuad.release();
+
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+}
+
+/**
  * @brief VolumeRenderWidget::paintGL
  */
 void VolumeRenderWidget::paintGL()
 {
-    double fps = 0.0;
     if (this->_loadingFinished && _volumerender.hasData() && !_noUpdate)
     {
-        // OpenCL raycast
         try
         {
             if (_useGL)
-                _volumerender.runRaycast(size_t(floor(this->size().width() * _imgSamplingRate)),
-                                         size_t(floor(this->size().height()* _imgSamplingRate)));
+            {
+                _volumerender.runRaycast(size_t(floor(width() * _imgSamplingRate)),
+                                         size_t(floor(height()* _imgSamplingRate)));
+            }
             else
             {
                 std::vector<float> d;
-                _volumerender.runRaycastNoGL(size_t(floor(this->size().width() * _imgSamplingRate)),
-                                             size_t(floor(this->size().height()* _imgSamplingRate)), d);
+                _volumerender.runRaycastNoGL(size_t(floor(width() * _imgSamplingRate)),
+                                             size_t(floor(height()* _imgSamplingRate)), d);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F,
                              int(floor(this->size().width() * _imgSamplingRate)),
                              int(floor(this->size().height()* _imgSamplingRate)),
                              0, GL_RGBA, GL_FLOAT,
                              d.data());
-                glGenerateMipmap(GL_TEXTURE_2D);
-                _volumerender.updateOutputImg(static_cast<size_t>(width()),
-                                              static_cast<size_t>(height()), _outTexId);
+                _volumerender.updateOutputImg(size_t(floor(width() * _imgSamplingRate)),
+                                              size_t(floor(height()* _imgSamplingRate)), _outTexId);
             }
         }
         catch (std::runtime_error e)
         {
             qCritical() << e.what();
         }
-        fps = getFps();
     }
+    double fps = getFps();
 
     QPainter p(this);
     p.beginNativePainting();
     {
-        // render the ray casting output
-        // clear to white to avoid getting colored borders outside the quad
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-        // draw screen quad
-        //
-        _screenQuadVao.bind();
-        _quadVbo.bind();
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
-
-        // render screen quad
-        //
-        _spScreenQuad.bind();
-        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("projMatrix"),
-                                       _screenQuadProjMX );
-        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("mvMatrix"),
-                                       _viewMX * _modelMX );
-        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("width"), width());
-        _spScreenQuad.setUniformValue( _spScreenQuad.uniformLocation("height"), height());
-
-        _spScreenQuad.setUniformValue(_spScreenQuad.uniformLocation("outTex"), GL_TEXTURE0);
-        glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
-        _screenQuadVao.release();
-        _quadVbo.release();
-        _spScreenQuad.release();
-
-        glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
+        drawScreenQuad();
 
         if (_volumerender.hasData() && _writeImage)
         {
@@ -1476,8 +1481,6 @@ double VolumeRenderWidget::getFps()
         sum += _times.at(i);
 
     double fps = 1.0/(sum/_times.length());
-
-//    qDebug() << fps;
     return fps;
 }
 

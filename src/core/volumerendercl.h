@@ -428,6 +428,13 @@ private:
      */
     void initKernel(const std::string fileName, const std::string buildFlags = "");
 
+    /**
+     * @brief Rund the actual raycast on the device.
+     * @param width Width of the frame.
+     * @param height Height of the Frame.
+     */
+    void raycast(const size_t width, const size_t height);
+
     // set kernel args
     void setCameraArgs();
     void setRenderingArgs();
