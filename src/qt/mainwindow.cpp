@@ -36,6 +36,7 @@
 #include <QComboBox>
 #include <QJsonObject>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QInputDialog>
 #include <QActionGroup>
 
@@ -76,8 +77,10 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionSaveRawTff_2, &QAction::triggered, this, &MainWindow::saveRawTff);
     connect(ui->actionLoadCpTff, &QAction::triggered, this, &MainWindow::loadTff);
     connect(ui->actionLoadRawTff, &QAction::triggered, this, &MainWindow::loadRawTff);
-    connect(ui->actionSaveState, &QAction::triggered, this, &MainWindow::saveCamState);
-    connect(ui->actionLoadState, &QAction::triggered, this, &MainWindow::loadCamState);
+    connect(ui->actionSaveState, &QAction::triggered, this, &MainWindow::saveConfigurationDialog);
+    connect(ui->actionLoadState, &QAction::triggered, this, &MainWindow::loadConfigurationDialog);
+    connect(ui->actionLoad_batch_run, &QAction::triggered,
+            this, &MainWindow::loadBatchConfigurationDialog);
     // menu - edit
     connect(ui->actionGenerateLowResVo, &QAction::triggered,
             ui->volumeRenderWidget, &VolumeRenderWidget::generateLowResVolume);
@@ -394,9 +397,71 @@ void MainWindow::loadEnvironmentMap()
 }
 
 /**
+ * @brief MainWindow::loadBatchConfigurationDialog
+ */
+void MainWindow::loadBatchConfigurationDialog()
+{
+    QSettings settings;
+    QFileDialog dialog;
+    QString defaultPath = settings.value( "LastConfigBatchFile" ).toString();
+    QString pickedFile = dialog.getOpenFileName(this, tr("Load batch config"),
+                                                defaultPath, tr("JSON files (*.json)"));
+    if (pickedFile.isEmpty())
+        return;
+    settings.setValue( "LastConfigBatchFile", pickedFile );
+    loadBatchConfiguration(pickedFile);
+}
+
+/**
+ * @brief MainWindow::loadBatchConfiguration
+ * @param fileName
+ */
+void MainWindow::loadBatchConfiguration(const QString &fileName)
+{
+    QFile loadFile(fileName);
+    if (!loadFile.open(QIODevice::ReadOnly))
+    {
+        qWarning() << "Couldn't open state file" << fileName;
+        return;
+    }
+
+    QJsonDocument loadDoc(QJsonDocument::fromJson(loadFile.readAll()));
+    QJsonObject json = loadDoc.object();
+    ui->volumeRenderWidget->setBatchMode(true);
+    if (json.contains("TestCases") && json["TestCases"].isArray())
+    {
+        QJsonArray testArray = json["TestCases"].toArray();
+        for (int i = 0; i < testArray.size(); ++i)
+        {
+            QJsonObject testObject = testArray[i].toObject();
+            if (testObject.contains("DataSet") && testObject["DataSet"].isString())
+            {
+                DatRawReader::Properties volumeFileProps;
+                volumeFileProps.dat_file_name = testObject["DataSet"].toString().toStdString();
+                setVolumeData(volumeFileProps);
+                finishedLoading();
+            }
+            if (testObject.contains("TransferFunction") && testObject["TransferFunction"].isString())
+                readTff(testObject["TransferFunction"].toString());
+            if (testObject.contains("Configs") && testObject["Configs"].isArray())
+            {
+                QJsonArray configArray = testObject["Configs"].toArray();
+                for (int j = 0; j < configArray.size(); ++j)
+                {
+                    loadConfiguration(configArray[j].toString());
+                    for (int k = 0; k < 100; ++k)   // force smoothing
+                        ui->volumeRenderWidget->updateRendering();
+                    ui->volumeRenderWidget->saveFrame();    // TODO: add string to name
+                }
+            }
+        }
+    }
+}
+
+/**
  * @brief MainWindow::loadCamState
  */
-void MainWindow::loadCamState()
+void MainWindow::loadConfigurationDialog()
 {
     QSettings settings;
     QFileDialog dialog;
@@ -406,16 +471,22 @@ void MainWindow::loadCamState()
     if (pickedFile.isEmpty())
         return;
     settings.setValue( "LastStateFile", pickedFile );
+    loadConfiguration(pickedFile);
+}
 
-    QFile loadFile(pickedFile);
-    if (!loadFile.open(QIODevice::ReadOnly))
+/**
+ * @brief MainWindow::loadConfiguration
+ * @param file The file to read from.
+ */
+void MainWindow::loadConfiguration(const QString &fileName)
+{
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly))
     {
-        qWarning() << "Couldn't open state file" << pickedFile;
+        qWarning() << "Couldn't open state file" << fileName;
         return;
     }
-
-    QByteArray saveData = loadFile.readAll();
-    QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+    QJsonDocument loadDoc(QJsonDocument::fromJson(file.readAll()));
     QJsonObject json = loadDoc.object();
 
     // technique
@@ -432,9 +503,7 @@ void MainWindow::loadCamState()
         ui->dsbExtinction->setValue(json["extinction"].toDouble());
     if (json.contains("lighting"))
         ui->cbIllum->setCurrentIndex(json["lighting"].toInt(1));
-    // flags
-    if (json.contains("useLerp") && json["useLerp"].isBool())
-        ui->actionInterpolation->setChecked(json["useLerp"].toBool());
+    // rendering flags
     if (json.contains("useAO") && json["useAO"].isBool())
         ui->chbAmbientOcclusion->setChecked(json["useAO"].toBool());
     if (json.contains("showContours") && json["showContours"].isBool())
@@ -449,19 +518,26 @@ void MainWindow::loadCamState()
         ui->chbContRendering->setChecked(json["continuedRendering"].toBool());
     if (json.contains("gradientBackground") && json["gradientBackground"].isBool())
         ui->chbGradient->setChecked(json["gradientBackground"].toBool());
+    // rendering (menu)
+    if (json.contains("useLerp") && json["useLerp"].isBool())
+        ui->actionInterpolation->setChecked(json["useLerp"].toBool());
+    if (json.contains("objectOrderEmptySpaceSkipping") && json["objectOrderEmptySpaceSkipping"].isBool())
+        ui->actionObjectESS->setChecked(json["objectOrderEmptySpaceSkipping"].toBool());
+    if (json.contains("imageOrderEmptySpaceSkipping") && json["objectOrderEmptySpaceSkipping"].isBool())
+        ui->actionImageESS->setChecked(json["objectOrderEmptySpaceSkipping"].toBool());
     // transfer function
     if (json.contains("tffInterpolation"))
         ui->cbTffInterpolation->setCurrentIndex(json["tffInterpolation"].toInt());
     if (json.contains("tffLogScale") && json["tffLogScale"].isBool())
         ui->chbLog->setChecked(json["tffLogScale"].toBool());
     // camera paramters
-    ui->volumeRenderWidget->read(json);
+    ui->volumeRenderWidget->readCameraState(json);
 }
 
 /**
  * @brief MainWindow::saveCamState
  */
-void MainWindow::saveCamState()
+void MainWindow::saveConfigurationDialog()
 {
     QSettings settings;
     QFileDialog dialog;
@@ -471,11 +547,19 @@ void MainWindow::saveCamState()
     if (pickedFile.isEmpty())
         return;
     settings.setValue( "LastStateFile", pickedFile );
+    saveConfiguration(pickedFile);
+}
 
-    QFile saveFile(pickedFile);
+/**
+ * @brief MainWindow::saveConfiguration
+ * @param file The file to write to.
+ */
+void MainWindow::saveConfiguration(const QString &fileName)
+{
+    QFile saveFile(fileName);
     if (!saveFile.open(QIODevice::WriteOnly))
     {
-        qWarning() << "Couldn't open save file" << pickedFile;
+        qWarning() << "Couldn't open save file" << fileName;
         return;
     }
 
@@ -490,7 +574,6 @@ void MainWindow::saveCamState()
     // lighting
     stateObject["lighting"] = ui->cbIllum->currentIndex();
     // rendering flags
-    stateObject["useLerp"] = ui->actionInterpolation->isChecked();
     stateObject["useAO"] = ui->chbAmbientOcclusion->isChecked();
     stateObject["showContours"] = ui->chbContours->isChecked();
     stateObject["useAerial"] = ui->chbAerial->isChecked();
@@ -498,11 +581,15 @@ void MainWindow::saveCamState()
     stateObject["useOrtho"] = ui->chbOrtho->isChecked();
     stateObject["continuedRendering"] = ui->chbContRendering->isChecked();
     stateObject["gradientBackground"] = ui->chbGradient->isChecked();
+    // rendering (menu)
+    stateObject["useLerp"] = ui->actionInterpolation->isChecked();
+    stateObject["objectOrderEmptySpaceSkipping"] = ui->actionObjectESS->isChecked();
+    stateObject["imageOrderEmptySpaceSkipping"] = ui->actionImageESS->isChecked();
     // tff
     stateObject["tffInterpolation"] = ui->cbTffInterpolation->currentIndex();
     stateObject["tffLogScale"] = ui->chbLog->isChecked();
     // camera parameters
-    ui->volumeRenderWidget->write(stateObject);
+    ui->volumeRenderWidget->writeCameraState(stateObject);
 
     QJsonDocument saveDoc(stateObject);
     saveFile.write(saveDoc.toJson());
@@ -670,7 +757,7 @@ bool MainWindow::readVolumeFile(const QUrl &url)
     _fileName = fileName;
     QFuture<void> future = QtConcurrent::run(this, &MainWindow::setVolumeData, volumeFileProps);
     _watcher->setFuture(future);
-    _timer.start(100);
+//    _timer.start(100);
 
     return true;
 }
@@ -891,7 +978,7 @@ void MainWindow::finishedLoading()
 {
     //_progBar.setValue(100);
     _progBar.hide();
-    _timer.stop();
+//    _timer.stop();
     this->setStatusText();
     ui->volumeRenderWidget->setLoadingFinished(true);
     ui->volumeRenderWidget->updateView();
@@ -974,7 +1061,7 @@ void MainWindow::openVolumeFile()
         }
         else
         {
-            settings.setValue( "LastVolumeFile", pickedFile );
+            settings.setValue("LastVolumeFile", pickedFile);
         }
     }
 }

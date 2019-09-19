@@ -902,7 +902,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     }
     else
     {
-        float3 prevCol = read_imagef(inAccumulate, nearestIntSmp, texCoords).xyz;
+        float3 prevCol = read_imagef(inAccumulate, nearestSmp, texCoords).xyz;
         result.xyz = prevCol + (result.xyz - prevCol) / (float3)(render.iteration + 1);
         write_imagef(outAccumulate, texCoords, result);
     }

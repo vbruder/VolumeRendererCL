@@ -101,6 +101,9 @@ public:
 
     void setEnvironmentMap(QString fileName);
 
+    void updateRendering();
+
+    void setBatchMode(const bool mode) {_batchProcessing = mode;}
 public slots:
     void cleanup();
     void resetCam();
@@ -143,8 +146,8 @@ public slots:
 
     void generateLowResVolume();
 
-    void read(const QJsonObject &json);
-    void write(QJsonObject &json) const;
+    void readCameraState(const QJsonObject &json);
+    void writeCameraState(QJsonObject &json) const;
 
     void showSelectOpenCL();
     void reloadKernels();
@@ -251,6 +254,7 @@ private:
     bool _loadingFinished = false;
     bool _writeImage = false;
     bool _recordVideo = false;
+    bool _batchProcessing = false;
     qint64 _imgCount = 0;
     double _imgSamplingRate = 1.0;
     bool _useGL = true;

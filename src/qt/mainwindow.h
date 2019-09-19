@@ -62,8 +62,8 @@ protected slots:
     void saveRawTff();
 
     void chooseBackgroundColor();
-    void saveCamState();
-    void loadCamState();
+    void saveConfigurationDialog();
+    void loadConfigurationDialog();
     void showAboutDialog();
     void updateTransferFunctionFromGradientStops();
     void setLoopTimesteps();
@@ -78,6 +78,7 @@ protected slots:
     void updateBBox();
     void enableClipping(bool checked);
     void updateHistogram();
+    void loadBatchConfigurationDialog();
 protected:
     void dragEnterEvent(QDragEnterEvent *ev) Q_DECL_OVERRIDE;
     void dropEvent(QDropEvent *ev) Q_DECL_OVERRIDE;
@@ -88,6 +89,9 @@ protected:
     DatRawReader::Properties showVolumePropertyDialog(const QString &filename);
 
 private:
+    void loadBatchConfiguration(const QString &fileName);
+    void saveConfiguration(const QString &fileName);
+    void loadConfiguration(const QString &fileName);
     void setVolumeData(const DatRawReader::Properties volumeFileProps);
     bool readVolumeFile(const QUrl &url);
     void readTff(const QString &fileName);

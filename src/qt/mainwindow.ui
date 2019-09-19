@@ -63,6 +63,8 @@
     <addaction name="actionLoadState"/>
     <addaction name="actionSaveState"/>
     <addaction name="separator"/>
+    <addaction name="actionLoad_batch_run"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuView">
@@ -965,6 +967,11 @@
    </property>
    <property name="text">
     <string>Tiny        (  4³)</string>
+   </property>
+  </action>
+  <action name="actionLoad_batch_run">
+   <property name="text">
+    <string>Load batch run...</string>
    </property>
   </action>
  </widget>

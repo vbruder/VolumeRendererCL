@@ -505,6 +505,12 @@ void VolumeRenderWidget::drawScreenQuad()
     glDisable(GL_DEPTH_TEST);
 }
 
+void VolumeRenderWidget::updateRendering()
+{
+    _volumerender.runRaycast(size_t(floor(width() * _imgSamplingRate)),
+                             size_t(floor(height()* _imgSamplingRate)));
+}
+
 /**
  * @brief VolumeRenderWidget::paintGL
  */
@@ -551,9 +557,12 @@ void VolumeRenderWidget::paintGL()
             QString number = QString("%1").arg(_imgCount++, 6, 10, QChar('0'));
             if (!_recordVideo)
             {
-                QLoggingCategory category("screenshot");
-                qCInfo(category, "Writing current frame img/frame_%s.png",
-                       number.toStdString().c_str());
+                if (!_batchProcessing)
+                {
+                    QLoggingCategory category("screenshot");
+                    qCInfo(category, "Writing current frame to img/frame_%s.png",
+                        number.toStdString().c_str());
+                }
                 _writeImage = false;
             }
             if (!QDir("img").exists())
@@ -875,7 +884,7 @@ const QVector4D VolumeRenderWidget::getVolumeResolution() const
 void VolumeRenderWidget::updateSamplingRate(double samplingRate)
 {
     _volumerender.updateSamplingRate(samplingRate);
-    update();
+    updateView();
 }
 
 
@@ -1519,7 +1528,7 @@ void VolumeRenderWidget::generateLowResVolume()
  * @brief VolumeRenderWidget::read
  * @param json
  */
-void VolumeRenderWidget::read(const QJsonObject &json)
+void VolumeRenderWidget::readCameraState(const QJsonObject &json)
 {
     if (json.contains("camRotation"))
     {
@@ -1556,10 +1565,10 @@ static QString qStringFloat(float f)
 }
 
 /**
- * @brief VolumeRenderWidget::write
+ * @brief VolumeRenderWidget::writeCameraState
  * @param json
  */
-void VolumeRenderWidget::write(QJsonObject &json) const
+void VolumeRenderWidget::writeCameraState(QJsonObject &json) const
 {
     QString sTmp = qStringFloat(_rotQuat.scalar()) + " " + qStringFloat(_rotQuat.x())
                    + " " + qStringFloat(_rotQuat.y()) + " " + qStringFloat(_rotQuat.z());
