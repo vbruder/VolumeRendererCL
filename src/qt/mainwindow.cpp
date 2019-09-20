@@ -92,7 +92,7 @@ MainWindow::MainWindow(QWidget *parent) :
             this, &MainWindow::updateTransferFunctionFromGradientStops);
     // menu - record / play
     connect(ui->actionScreenshot, &QAction::triggered,
-            ui->volumeRenderWidget, &VolumeRenderWidget::saveFrame);
+            ui->volumeRenderWidget, &VolumeRenderWidget::saveNextFrame);
     connect(ui->actionRecord, &QAction::triggered,
             ui->volumeRenderWidget, &VolumeRenderWidget::toggleVideoRecording);
     connect(ui->actionRecordCamera, &QAction::triggered,
@@ -428,6 +428,7 @@ void MainWindow::loadBatchConfiguration(const QString &fileName)
     QJsonDocument loadDoc(QJsonDocument::fromJson(loadFile.readAll()));
     QJsonObject json = loadDoc.object();
     ui->volumeRenderWidget->setBatchMode(true);
+    ui->volumeRenderWidget->setFrameCount(0);
     if (json.contains("TestCases") && json["TestCases"].isArray())
     {
         QJsonArray testArray = json["TestCases"].toArray();
@@ -440,6 +441,10 @@ void MainWindow::loadBatchConfiguration(const QString &fileName)
                 volumeFileProps.dat_file_name = testObject["DataSet"].toString().toStdString();
                 setVolumeData(volumeFileProps);
                 finishedLoading();
+                QString prefix = testObject["DataSet"].toString();
+                prefix = prefix.remove(0, prefix.lastIndexOf('/') + 1);
+                prefix.chop(QString(".dat").length());
+                ui->volumeRenderWidget->setFramePrefix(prefix);
             }
             if (testObject.contains("TransferFunction") && testObject["TransferFunction"].isString())
                 readTff(testObject["TransferFunction"].toString());
@@ -449,9 +454,9 @@ void MainWindow::loadBatchConfiguration(const QString &fileName)
                 for (int j = 0; j < configArray.size(); ++j)
                 {
                     loadConfiguration(configArray[j].toString());
-                    for (int k = 0; k < 100; ++k)   // force smoothing
+                    for (int k = 0; k < 32; ++k)   // force smoothing
                         ui->volumeRenderWidget->updateRendering();
-                    ui->volumeRenderWidget->saveFrame();    // TODO: add string to name
+                    ui->volumeRenderWidget->writeCurrentFrame();
                 }
             }
         }
@@ -525,6 +530,8 @@ void MainWindow::loadConfiguration(const QString &fileName)
         ui->actionObjectESS->setChecked(json["objectOrderEmptySpaceSkipping"].toBool());
     if (json.contains("imageOrderEmptySpaceSkipping") && json["objectOrderEmptySpaceSkipping"].isBool())
         ui->actionImageESS->setChecked(json["objectOrderEmptySpaceSkipping"].toBool());
+    if (json.contains("showOverlay") && json["showOverlay"].isBool())
+        ui->actionShowOverlay->setChecked(json["showOverlay"].toBool());
     // transfer function
     if (json.contains("tffInterpolation"))
         ui->cbTffInterpolation->setCurrentIndex(json["tffInterpolation"].toInt());
@@ -585,6 +592,7 @@ void MainWindow::saveConfiguration(const QString &fileName)
     stateObject["useLerp"] = ui->actionInterpolation->isChecked();
     stateObject["objectOrderEmptySpaceSkipping"] = ui->actionObjectESS->isChecked();
     stateObject["imageOrderEmptySpaceSkipping"] = ui->actionImageESS->isChecked();
+    stateObject["showOverlay"] = ui->actionShowOverlay->isChecked();
     // tff
     stateObject["tffInterpolation"] = ui->cbTffInterpolation->currentIndex();
     stateObject["tffLogScale"] = ui->chbLog->isChecked();
@@ -757,7 +765,7 @@ bool MainWindow::readVolumeFile(const QUrl &url)
     _fileName = fileName;
     QFuture<void> future = QtConcurrent::run(this, &MainWindow::setVolumeData, volumeFileProps);
     _watcher->setFuture(future);
-//    _timer.start(100);
+    _timer.start(100);
 
     return true;
 }
@@ -978,7 +986,7 @@ void MainWindow::finishedLoading()
 {
     //_progBar.setValue(100);
     _progBar.hide();
-//    _timer.stop();
+    _timer.stop();
     this->setStatusText();
     ui->volumeRenderWidget->setLoadingFinished(true);
     ui->volumeRenderWidget->updateView();

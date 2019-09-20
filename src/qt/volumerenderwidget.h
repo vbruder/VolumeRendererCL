@@ -104,6 +104,9 @@ public:
     void updateRendering();
 
     void setBatchMode(const bool mode) {_batchProcessing = mode;}
+    void writeCurrentFrame();
+    void setFrameCount(const qint64 cnt = 0);
+    void setFramePrefix(const QString &prefix);
 public slots:
     void cleanup();
     void resetCam();
@@ -136,7 +139,7 @@ public slots:
     void setImageSamplingRate(const double samplingRate);
     void setShowOverlay(bool showOverlay);
 
-    void saveFrame();
+    void saveNextFrame();
     void toggleVideoRecording();
     void toggleViewRecording();
 	void toggleInteractionLogging();
@@ -256,6 +259,7 @@ private:
     bool _recordVideo = false;
     bool _batchProcessing = false;
     qint64 _imgCount = 0;
+    QString _framePrefix = "";
     double _imgSamplingRate = 1.0;
     bool _useGL = true;
     bool _showOverlay = true;

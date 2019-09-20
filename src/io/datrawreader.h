@@ -47,6 +47,18 @@ public:
         , UNKNOWN_FORMAT
     };
 
+    static std::string get_data_foramt_string(data_format f)
+    {
+        switch (f)
+        {
+            case UCHAR: return "UCHAR";
+            case USHORT: return "USHORT";
+            case FLOAT: return "FLOAT";
+            case DOUBLE: return "DOUBLE";
+            case UNKNOWN_FORMAT: return "UNKNOWN_FORMAT";
+        }
+    }
+
     enum byte_order
     {
           LITTLE = 0
@@ -67,7 +79,7 @@ public:
         data_format format = UNKNOWN_FORMAT;
         byte_order endianness = LITTLE;
         std::string node_file_name = "";
-        std::string image_channel_order = "R";  // TODO: change to enum?
+        std::string image_channel_order = "R";  // TODO: change to enum
         unsigned int time_series = {1u};
         // data range for float normalization: TODO: add to kernel
         float min_value = std::numeric_limits<float>::max();

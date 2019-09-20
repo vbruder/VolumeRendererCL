@@ -244,12 +244,9 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
         throw std::invalid_argument("Factor must be greater or equal 2.");
 
     std::array<unsigned int, 3> texSize = {1u, 1u, 1u};
-    texSize.at(0) = static_cast<unsigned int>(ceil(_dr.properties().volume_res.at(0) /
-                                                         static_cast<double>(factor)));
-    texSize.at(1) = static_cast<unsigned int>(ceil(_dr.properties().volume_res.at(1) /
-                                                         static_cast<double>(factor)));
-    texSize.at(2) = static_cast<unsigned int>(ceil(_dr.properties().volume_res.at(2) /
-                                                         static_cast<double>(factor)));
+    texSize.at(0) = static_cast<uint>(ceil(_dr.properties().volume_res.at(0) / double(factor)));
+    texSize.at(1) = static_cast<uint>(ceil(_dr.properties().volume_res.at(1) / double(factor)));
+    texSize.at(2) = static_cast<uint>(ceil(_dr.properties().volume_res.at(2) / double(factor)));
 
     if (texSize.at(0) < 64)
     {
@@ -330,7 +327,8 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
                 << _dr.properties().slice_thickness.at(1) << " "
                 << _dr.properties().slice_thickness.at(2)
                 << "\n";
-        datFile << "Format: \t\t\t" << _dr.properties().format << "\n";
+        datFile << "Format: \t\t\t" << DatRawReader::get_data_foramt_string(_dr.properties().format)
+                << "\n";
         datFile.close();
         std::cout << " Done." << std::endl;
         return rawname;
@@ -481,13 +479,14 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
             _raycastKernel.setArg(OUTPUT, _outputMemNoGL);
         }
 
-        std::vector<unsigned int> initBuff((width/LOCAL_SIZE+ 1)*(height/LOCAL_SIZE+ 1), 1u);
+        uint os = 1;
+        std::vector<uint> initBuff((width/LOCAL_SIZE + os)*(height/LOCAL_SIZE + os), 1u);
         format = cl::ImageFormat(CL_R, CL_UNSIGNED_INT8);
         _outputHitMem = cl::Image2D(_contextCL, CL_MEM_READ_WRITE, format,
-                                    width/LOCAL_SIZE + 1, height/LOCAL_SIZE + 1);
+                                    width/LOCAL_SIZE + os, height/LOCAL_SIZE + os);
         _inputHitMem = cl::Image2D(_contextCL, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, format,
-                                   width/LOCAL_SIZE + 1, height/LOCAL_SIZE + 1, 0,
-                                   const_cast<unsigned int*>(initBuff.data()));
+                                   width/LOCAL_SIZE + os, height/LOCAL_SIZE + os, 0,
+                                   const_cast<uint*>(initBuff.data()));
 
         format.image_channel_order = CL_RGBA;
         format.image_channel_data_type = CL_UNORM_INT8;
@@ -510,8 +509,8 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
 void VolumeRenderCL::raycast(const size_t width, const size_t height)
 {
     setMemObjectsRaycast(_timestep);
-    cl::NDRange globalThreads(width + (LOCAL_SIZE - width  % LOCAL_SIZE),
-                              height+ (LOCAL_SIZE - height % LOCAL_SIZE));
+    cl::NDRange globalThreads(width  - (width  % LOCAL_SIZE),
+                              height - (height % LOCAL_SIZE));
     cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
     cl::Event ndrEvt;
     _queueCL.enqueueNDRangeKernel(_raycastKernel, cl::NullRange,

@@ -368,16 +368,16 @@
         <item row="3" column="3" colspan="2">
          <widget class="QDoubleSpinBox" name="dsbSamplingRate">
           <property name="decimals">
-           <number>1</number>
+           <number>2</number>
           </property>
           <property name="minimum">
-           <double>0.100000000000000</double>
+           <double>0.010000000000000</double>
           </property>
           <property name="maximum">
-           <double>20.000000000000000</double>
+           <double>9.990000000000000</double>
           </property>
           <property name="singleStep">
-           <double>0.100000000000000</double>
+           <double>0.010000000000000</double>
           </property>
           <property name="value">
            <double>1.500000000000000</double>
@@ -971,7 +971,10 @@
   </action>
   <action name="actionLoad_batch_run">
    <property name="text">
-    <string>Load batch run...</string>
+    <string>Batch run...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
    </property>
   </action>
  </widget>

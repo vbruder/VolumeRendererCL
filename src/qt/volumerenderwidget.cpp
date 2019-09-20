@@ -280,9 +280,27 @@ void VolumeRenderWidget::initVolumeRenderer(bool useGL, const bool useCPU)
 }
 
 /**
- * @brief VolumeRenderWidget::saveFrame
+ * @brief VolumeRenderWidget::setFrameCount
+ * @param cnt The frame number to set, defaults to 0.
  */
-void VolumeRenderWidget::saveFrame()
+void VolumeRenderWidget::setFrameCount(const qint64 cnt)
+{
+    _imgCount = cnt;
+}
+
+/**
+ * @brief VolumeRenderWidget::setFramePrefix
+ * @param prefix String to prepend to the name of saved frames.
+ */
+void VolumeRenderWidget::setFramePrefix(const QString &prefix)
+{
+    _framePrefix = prefix;
+}
+
+/**
+ * @brief VolumeRenderWidget::saveNextFrame
+ */
+void VolumeRenderWidget::saveNextFrame()
 {
     _writeImage = true;
     update();
@@ -505,11 +523,38 @@ void VolumeRenderWidget::drawScreenQuad()
     glDisable(GL_DEPTH_TEST);
 }
 
+/**
+ * @brief VolumeRenderWidget::updateRendering
+ */
 void VolumeRenderWidget::updateRendering()
 {
     _volumerender.runRaycast(size_t(floor(width() * _imgSamplingRate)),
                              size_t(floor(height()* _imgSamplingRate)));
 }
+
+/**
+ * @brief VolumeRenderWidget::writeCurrentFrame
+ */
+void VolumeRenderWidget::writeCurrentFrame()
+{
+    QImage img = this->grabFramebuffer();
+    QString number = QString("%1").arg(_imgCount++, 6, 10, QChar('0'));
+    if (!_recordVideo)
+    {
+        if (!_batchProcessing)
+        {
+            QLoggingCategory category("screenshot");
+            QString name = _framePrefix + "_f_" + number;
+            qCInfo(category, "Writing current frame to img/%s.png", name.toStdString().c_str());
+        }
+        _writeImage = false;
+    }
+    if (!QDir("img").exists())
+        QDir().mkdir("img");
+    img.save("img/" + _framePrefix + "_f_" + number + "_"
+             + QString::number(_volumerender.getLastExecTime()) + ".png");
+}
+
 
 /**
  * @brief VolumeRenderWidget::paintGL
@@ -552,24 +597,7 @@ void VolumeRenderWidget::paintGL()
         drawScreenQuad();
 
         if (_volumerender.hasData() && _writeImage)
-        {
-            QImage img = this->grabFramebuffer();
-            QString number = QString("%1").arg(_imgCount++, 6, 10, QChar('0'));
-            if (!_recordVideo)
-            {
-                if (!_batchProcessing)
-                {
-                    QLoggingCategory category("screenshot");
-                    qCInfo(category, "Writing current frame to img/frame_%s.png",
-                        number.toStdString().c_str());
-                }
-                _writeImage = false;
-            }
-            if (!QDir("img").exists())
-                QDir().mkdir("img");
-            img.save("img/frame_" + number + "_"
-                     + QString::number(_volumerender.getLastExecTime()) + ".png");
-        }
+            writeCurrentFrame();
     }
     p.endNativePainting();
 
