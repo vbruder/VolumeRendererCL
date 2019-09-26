@@ -8,12 +8,15 @@ The rederer is designed to run interactive on the GPU in single node environment
 The data set size is limited by available GPU memory.
 Execution on CPU is possible but not recommended due to severe performance issues.
 
-The code is structured as followed:
-- *kernel*: OpenCL C parallel volume rendering kernel
-- *core*: C++ interface to volume rendering kernel
-- *oclutils*: utilities for setting up OpenCL and OpenCL-OpenGL interop
-- *io*: volume data file reader (at the moment only dat/raw format)
-- *qt*: everything GUI related: OpenGL screen quad rendering, mouse/keyboard interaction, transfer function editor, color picker, parameter controls, histogram rendering... 
+The project is structured as followed:
+
+Path | Description
+-----|------------
+`/kernel` | OpenCL C parallel volume rendering kernel
+`/core` | C++ interface to volume rendering kernel
+`/oclutils` | utilities for setting up OpenCL and OpenCL-OpenGL interop
+`/io` | volume data file reader (at the moment only dat/raw format)
+`/qt` | everything GUI related: OpenGL screen quad rendering, mouse/keyboard interaction, transfer function editor, color picker, parameter controls, histogram rendering... 
 
 This renderer is primarily used as a basis for my [research projects](https://vbruder.github.io).
 Therefore, the code is partly lacking documentation, automated testing, and portability.
