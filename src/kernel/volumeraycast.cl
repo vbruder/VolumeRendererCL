@@ -155,6 +155,32 @@ int intersectPlane(const float3 rayOrigin, const float3 rayDir,
     return false;
 }
 
+// Based on Csébfalvi's SIGGRAPH 2019 paper "Beyond Trilinear Interpolation: Higher Quality for Free"
+float4 gradientCentralDiffCsebfalvi(read_only image3d_t vol, const float4 pos, float densitySample)
+{
+    float3 volResf = convert_float3(get_image_dim(vol).xyz);
+    float3 offset = native_divide((float3)(1.0f), volResf);
+    float3 s0, s1;
+    s0.x = read_imagef(vol, linearSmp, pos + (float4)(-offset.x, 0, 0, 0)).x;
+    s0.y = read_imagef(vol, linearSmp, pos + (float4)(0, -offset.y, 0, 0)).x;
+    s0.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, -offset.z, 0)).x;
+
+    s1.x = read_imagef(vol, linearSmp, pos + (float4)(+offset.x, 0, 0, 0)).x;
+    s1.y = read_imagef(vol, linearSmp, pos + (float4)(0, +offset.y, 0, 0)).x;
+    s1.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, +offset.z, 0)).x;
+
+    float3 scaledPosition = pos.xyz * volResf - 0.5f;
+    float3 fraction = scaledPosition - floor(scaledPosition);
+    float3 correctionPolynomial = (fraction * (fraction - 1.f)) / 2.f;
+    densitySample += dot((s0 - densitySample * 2.f + s1), correctionPolynomial);
+
+    float3 normal = fast_normalize(s1 - s0).xyz;
+    if (length(normal) == 0.0f) // TODO: zero correct
+        normal = (float3)(0.57735f);
+
+    return (float4)(normal, densitySample);
+}
+
 // Compute gradient using central difference: f' = ( f(x+h)-f(x-h) )
 float4 gradientCentralDiff(read_only image3d_t vol, const float4 pos)
 {
@@ -546,7 +572,7 @@ float3 transformVec3(const float16 mat, const float3 vec)
     float16 viewMat;
     float3 bbox_bl;     // bounding box bottom left
     float3 bbox_tr;     // bounding box top right
-    uint ortho;         // bool
+    uint ortho;         // bool: orthographic projection
 } camera_params;
 
 typedef struct tag_rendering_params
@@ -672,11 +698,11 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     float tnear = FLT_MIN;
     float tfar = FLT_MAX;
     int hit = 0;
-    // uniform bbox from (-1,-1,-1) to (+1,+1,+1)
     hit = intersectBBox(camPos, rayDir, camera.bbox_bl, camera.bbox_tr, &tnear, &tfar);
-    if (!hit || tfar < 0)
+    if (!hit || tfar <= 0)
     {
         write_imagef(outImg, texCoords, envirCol);
+        write_imagef(outAccumulate, texCoords, envirCol);
         if (render.imgEss)
             write_imageui(outHitImg, (int2)(get_group_id(0), get_group_id(1)), (uint4)(0u));
         return;
@@ -805,13 +831,15 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                     density = render.useLinear ? read_imagef(volData,  linearSmp, (float4)(pos, 1.f)).x
                                                : read_imagef(volData, nearestSmp, (float4)(pos, 1.f)).x;
 //                    density /= 10.f;  // TODO: normalization with max density
-                    tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
-                    if (tfColor.w > 0.1f && render.illumType)
+                    if (render.illumType != 1)
+                        tfColor = read_imagef(tffData, linearSmp, density);  // map density to color
+                    if (render.illumType) // && tfColor.w > 0.1f)
                     {
                         switch (render.illumType)
                         {
                         case 1:     // central diff
-                            gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                            gradient = -gradientCentralDiffCsebfalvi(volData, (float4)(pos, 1.f), density);
+                            tfColor = read_imagef(tffData, linearSmp, -gradient.w);
                             break;
                         case 2:     // central diff & transfer function
                             gradient = -gradientCentralDiffTff(volData, (float4)(pos, 1.f), tffData);
@@ -821,17 +849,19 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                         default:
                             break;
                         }
-                        if (render.illumType == 5)
+                        if (render.illumType == 5)  // cel (aka toon) shading
                         {
                             gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
                             tfColor.xyz = celShading(tfColor.xyz, -rayDir, gradient.xyz);
                         }
                         else
+                        {
                             tfColor.xyz = illumination((float4)(pos, 1.f), tfColor.xyz, -rayDir, gradient.xyz);
+                        }
                     }
                     if (tfColor.w > 0.1f && raycast.contours) // edge enhancement
                     {
-                        if (!render.illumType) // no illumination
+                        if (!render.illumType) // no illumination, i.e. we haven't calculated the gradient yet
                             gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
                         tfColor.xyz *= fabs(dot(rayDir, gradient.xyz));
                     }
@@ -896,16 +926,12 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     }
     // write final image
     result.w = alpha;
-    if (render.iteration == 0)
-    {
-        write_imagef(outAccumulate, texCoords, result);
-    }
-    else
+    if (render.iteration > 0)
     {
         float3 prevCol = read_imagef(inAccumulate, nearestSmp, texCoords).xyz;
         result.xyz = prevCol + (result.xyz - prevCol) / (float3)(render.iteration + 1);
-        write_imagef(outAccumulate, texCoords, result);
     }
+    write_imagef(outAccumulate, texCoords, result);
     write_imagef(outImg, texCoords, result);
 
     // image order empty space skipping
