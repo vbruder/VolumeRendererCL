@@ -155,19 +155,33 @@ int intersectPlane(const float3 rayOrigin, const float3 rayDir,
     return false;
 }
 
-// Based on Csébfalvi's SIGGRAPH 2019 paper "Beyond Trilinear Interpolation: Higher Quality for Free"
-float4 gradientCentralDiffCsebfalvi(read_only image3d_t vol, const float4 pos, float densitySample)
+// sample 6 neighboring voxels (von-Neumann-neighborhood), samples are linearly interpolated
+float3 getNeighborSamples(read_only image3d_t vol, const float4 pos, float3 *s0, float3 *s1)
 {
     float3 volResf = convert_float3(get_image_dim(vol).xyz);
     float3 offset = native_divide((float3)(1.0f), volResf);
-    float3 s0, s1;
-    s0.x = read_imagef(vol, linearSmp, pos + (float4)(-offset.x, 0, 0, 0)).x;
-    s0.y = read_imagef(vol, linearSmp, pos + (float4)(0, -offset.y, 0, 0)).x;
-    s0.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, -offset.z, 0)).x;
+    float3 tmp_s0, tmp_s1;
 
-    s1.x = read_imagef(vol, linearSmp, pos + (float4)(+offset.x, 0, 0, 0)).x;
-    s1.y = read_imagef(vol, linearSmp, pos + (float4)(0, +offset.y, 0, 0)).x;
-    s1.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, +offset.z, 0)).x;
+    tmp_s0.x = read_imagef(vol, linearSmp, pos + (float4)(-offset.x, 0, 0, 0)).x;
+    tmp_s0.y = read_imagef(vol, linearSmp, pos + (float4)(0, -offset.y, 0, 0)).x;
+    tmp_s0.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, -offset.z, 0)).x;
+
+    tmp_s1.x = read_imagef(vol, linearSmp, pos + (float4)(+offset.x, 0, 0, 0)).x;
+    tmp_s1.y = read_imagef(vol, linearSmp, pos + (float4)(0, +offset.y, 0, 0)).x;
+    tmp_s1.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, +offset.z, 0)).x;
+
+    *s0 = tmp_s0;
+    *s1 = tmp_s1;
+
+    return  volResf;
+}
+
+// Compute gradient amd density correction, based on Csébfalvi's
+// SIGGRAPH 2019 paper "Beyond Trilinear Interpolation: Higher Quality for Free"
+float4 centralDiffCsebfalvi(read_only image3d_t vol, const float4 pos, float densitySample)
+{
+    float3 s0, s1;
+    float3 volResf = getNeighborSamples(vol, pos, &s0, &s1);
 
     float3 scaledPosition = pos.xyz * volResf - 0.5f;
     float3 fraction = scaledPosition - floor(scaledPosition);
@@ -181,54 +195,38 @@ float4 gradientCentralDiffCsebfalvi(read_only image3d_t vol, const float4 pos, f
     return (float4)(normal, densitySample);
 }
 
-// Compute gradient using central difference: f' = ( f(x+h)-f(x-h) )
-float4 gradientCentralDiff(read_only image3d_t vol, const float4 pos)
+// Compute gradient using central differences f' = ( f(x+h)-f(x-h) )
+float4 centralDiff(read_only image3d_t vol, const float4 pos)
 {
-    float3 volResf = convert_float3(get_image_dim(vol).xyz);
-    float3 offset = native_divide((float3)(1.0f), volResf);
-    float3 s1;
-    float3 s2;
-    s1.x = read_imagef(vol, linearSmp, pos + (float4)(-offset.x, 0, 0, 0)).x;
-    s1.y = read_imagef(vol, linearSmp, pos + (float4)(0, -offset.y, 0, 0)).x;
-    s1.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, -offset.z, 0)).x;
+    float3 s0, s1;
+    float3 volResf = getNeighborSamples(vol, pos, &s0, &s1);
 
-    s2.x = read_imagef(vol, linearSmp, pos + (float4)(+offset.x, 0, 0, 0)).x;
-    s2.y = read_imagef(vol, linearSmp, pos + (float4)(0, +offset.y, 0, 0)).x;
-    s2.z = read_imagef(vol, linearSmp, pos + (float4)(0, 0, +offset.z, 0)).x;
-
-    float3 normal = fast_normalize(s2 - s1).xyz;
+    float3 normal = fast_normalize(s1 - s0).xyz;
     if (length(normal) == 0.0f) // TODO: zero correct
         normal = (float3)(0.57735f);
 
-    return (float4)(normal, fast_length(s2 - s1));
+    return (float4)(normal, fast_length(s1 - s0));
 }
 
-// Compute gradient using central difference: f' = ( f(x+h)-f(x-h) ) and the transfer funciton
-float4 gradientCentralDiffTff(read_only image3d_t vol, const float4 pos, read_only image1d_t tff)
+// Compute gradient using central differences and the transfer funciton
+float4 centralDiffTff(read_only image3d_t vol, const float4 pos, read_only image1d_t tff)
 {
-    float3 volResf = convert_float3(get_image_dim(vol).xyz);
-    float3 offset = native_divide((float3)(1.0f), volResf);
-    float3 s1;
-    float3 s2;
-    s1.x = read_imagef(tff, linearSmp,
-                       read_imagef(vol, linearSmp, pos + (float4)(-offset.x, 0, 0, 0)).x).w;
-    s1.y = read_imagef(tff, linearSmp,
-                       read_imagef(vol, linearSmp, pos + (float4)(0, -offset.y, 0, 0)).x).w;
-    s1.z = read_imagef(tff, linearSmp,
-                       read_imagef(vol, linearSmp, pos + (float4)(0, 0, -offset.z, 0)).x).w;
+    float3 s0, s1;
+    float3 volResf = getNeighborSamples(vol, pos, &s0, &s1);
 
-    s2.x = read_imagef(tff, linearSmp,
-                       read_imagef(vol, linearSmp, pos + (float4)(+offset.x, 0, 0, 0)).x).w;
-    s2.y = read_imagef(tff, linearSmp,
-                       read_imagef(vol, linearSmp, pos + (float4)(0, +offset.y, 0, 0)).x).w;
-    s2.z = read_imagef(tff, linearSmp,
-                       read_imagef(vol, linearSmp, pos + (float4)(0, 0, +offset.z, 0)).x).w;
+    s0.x = read_imagef(tff, linearSmp, s0.x).w;
+    s0.y = read_imagef(tff, linearSmp, s0.y).w;
+    s0.z = read_imagef(tff, linearSmp, s0.z).w;
 
-    float3 normal = fast_normalize(s2 - s1).xyz;
+    s1.x = read_imagef(tff, linearSmp, s1.x).w;
+    s1.y = read_imagef(tff, linearSmp, s1.y).w;
+    s1.z = read_imagef(tff, linearSmp, s1.z).w;
+
+    float3 normal = fast_normalize(s1 - s0).xyz;
     if (length(normal) == 0.0f) // TODO: zero correct
         normal = (float3)(0.57735f);
 
-    return (float4)(normal, fast_length(s2 - s1));
+    return (float4)(normal, fast_length(s1 - s0));
 }
 
 float getf4(float4 v, int id)
@@ -242,7 +240,7 @@ float getf4(float4 v, int id)
 // Compute gradient using a sobel filter (1,2,4)
 float4 gradientSobel(read_only image3d_t vol, const float4 pos)
 {
-    float sobelWeights[3][3][3][3] = {
+    const float sobelWeights[3][3][3][3] = {
             {{{-1, -2, -1},
               {-2, -4, -2},
               {-1, -2, -1}},
@@ -295,8 +293,8 @@ float4 gradientSobel(read_only image3d_t vol, const float4 pos)
     }
     gradient.xyz /= 27.f;
     gradient.w = fast_length(gradient.xyz);
-    if (gradient.w == 0)    // FIXME: normal in length 0 case?
-        gradient.xyz = (float3)(1.f);
+    if (gradient.w == 0)    // TODO: length 0 handling
+        gradient.xyz = (float3)(0.57735f);
     gradient.xyz = fast_normalize(gradient.xyz);
 
     return gradient;
@@ -470,7 +468,7 @@ float3 surface_scatter(float3 ray_pos,
                        float4 color)
 {
     float4 samplePos = (float4)(ray_pos * 0.5f + 0.5f, 1.f);
-    float4 gradient = -gradientCentralDiffTff(vol, samplePos, tff);
+    float4 gradient = -centralDiffTff(vol, samplePos, tff);
     return illumination(samplePos, color.xyz, -ray_dir + (float3)(0.5f, 0.5f, 0.f), gradient.xyz);
 //    float p = color.w *(1.f - exp(-gradient));
 }
@@ -506,7 +504,7 @@ float3 trace_volume(uint rand,
         float3 light_dir = -ray_dir + (float3)(0.5f, 0.5f, 0.f);
         // surface scattering (phong based)
         float4 samplePos = (float4)(ray_pos * 0.5f + 0.5f, 1.f);
-        float4 gradient = -gradientCentralDiffTff(vol, samplePos, tff);
+        float4 gradient = -centralDiffTff(vol, samplePos, tff);
         if (length(gradient) > 0.5f)    // high gradient -> phong illumination
         {
             color.xyz = illumination(samplePos, color.xyz, light_dir, gradient.xyz);
@@ -637,6 +635,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     uint4 ui_rand = ParallelRNG3(globalId.x, globalId.y, render.seed); //initRNG(1);
     float rand = (float)(ParallelRNG3(globalId.x, globalId.y, render.seed)) / (float)(UINT_MAX);
 
+    // calculate image coordinates
     float aspectRatio = native_divide((float)get_global_size(1), (float)(get_global_size(0)));
     aspectRatio = min(aspectRatio, native_divide((float)get_global_size(0), (float)(get_global_size(1))));
     int maxImgSize = max(get_global_size(0), get_global_size(1));
@@ -645,7 +644,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     imgCoords.y = native_divide((globalId.y), convert_float(maxImgSize)) * 2.f;
     // calculate correct offset based on aspect ratio
     imgCoords -= get_global_size(0) > get_global_size(1) ?
-                        (float2)(1.0f, aspectRatio) : (float2)(aspectRatio, 1.0);
+                        (float2)(1.f, aspectRatio) : (float2)(aspectRatio, 1.f);
     imgCoords.y *= -1.f;   // flip y coord
 
     // jitter ray starting position inside pixel
@@ -656,12 +655,13 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     // z position of view plane is -1.0 to fit the cube to the screen quad when axes are aligned,
     // zoom is -1 and the data set is uniform in each dimension
     // (with FoV of 90° and near plane in range [-1,+1]).
-    float3 nearPlanePos = (float3)(imgCoords, -1.0f);
+    float3 nearPlanePos = (float3)(imgCoords, -1.f);
     // transform nearPlane from view space to world space
     float3 rayDir = transformVec3(camera.viewMat, nearPlanePos);
     // camera position in world space (ray origin) is translation vector of view matrix
     float3 camPos = camera.viewMat.s37b*render.modelScale;
 
+    // orthographic camera
     if (camera.ortho)
     {
         camPos = (float3)(camera.viewMat.s37b);
@@ -681,7 +681,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     if (get_image_dim(environment).x > 1)
         envirCol = read_imagef(environment, linearSmp, get_environment_coords(rayDir));
 
-    // image order ess
+    // image order ESS
     local uint hits;
     if (render.imgEss)
     {
@@ -695,6 +695,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
         }
     }
 
+    // bounding box intersection test
     float tnear = FLT_MIN;
     float tfar = FLT_MAX;
     int hit = 0;
@@ -708,7 +709,9 @@ __kernel void volumeRender(  __read_only  image3d_t volData
         return;
     }
 
-    // ---- path tracing ----
+    // +--------------------+
+    // |    path tracing    |
+    // +--------------------+
     if (render.technique == 1)
     {
         uint random = ParallelRNG3(texCoords.x, texCoords.y, render.seed);
@@ -731,17 +734,27 @@ __kernel void volumeRender(  __read_only  image3d_t volData
         return;
     }
 
-    // ---- ray casting ----
-    float sampleDist = tfar - tnear;
+    // +--------------------+
+    // |    ray casting     |
+    // +--------------------+
+
+    // constants
+    const float sampleDist = tfar - tnear;
     if (sampleDist <= 0.f)
         return;
-    int3 volRes = get_image_dim(volData).xyz;
+    const int3 volRes = get_image_dim(volData).xyz;
+    const float3 voxLen = (float3)(1.f) / convert_float3(volRes);
+    const float refSamplingInterval = 1.f / raycast.samplingRate;
+    // offset by random distance to avoid moiré pattern and interpolation issues
+    const float offset = length(voxLen)*rand*2.0f;
+
+    // sampling distance (aka step size along the ray)
     float stepSize = min(sampleDist, sampleDist /
                           (raycast.samplingRate*length(sampleDist*rayDir*convert_float3(volRes))));
     float samples = ceil(sampleDist/stepSize);
     stepSize = sampleDist/samples;
 
-    // raycast parameters
+    // raycast variable initialization
     tnear = max(0.f, tnear);    // clamp to near plane
     float4 result = envirCol;
     float alpha = 0.f;
@@ -750,30 +763,24 @@ __kernel void volumeRender(  __read_only  image3d_t volData
     float4 tfColor = (float4)(0);
     float opacity = 0.f;
     float t = tnear;
-
-    float3 voxLen = (float3)(1.f) / convert_float3(volRes);
-    float refSamplingInterval = 1.f / raycast.samplingRate;
     float t_exit = tfar;
 
-    // offset by random distance to avoid moiré pattern and interpolation issues
-    float offset = length(voxLen)*rand*2.0f;
-
 #ifdef ESS
-    // 3D DDA initialization
-    int3 bricksRes = get_image_dim(volBrickData).xyz;
-//        if ((bricksRes.x & 1) != 0) bricksRes.x -= 1;
-//        if ((bricksRes.y & 1) != 0) bricksRes.y -= 1;
-//        if ((bricksRes.z & 1) != 0) bricksRes.z -= 1;
-    float3 brickLen = (float3)(1.f) / raycast.brickRes;    // actual fractal brick resolution
-    float3 invRay = 1.f/rayDir;
-    int3 step = select(convert_int3(sign(rayDir)), (int3)(1), approxEq3(rayDir, (float3)(0)));
-    invRay = select(invRay, (float3)(FLT_MAX), approxEq3(rayDir, (float3)(0.f)));
+    // 3D DDA initialization constants
+    const int3 bricksRes = get_image_dim(volBrickData).xyz;
+    // actual fractal brick resolution
+    const float3 brickLen = (float3)(1.f) / raycast.brickRes;
+    // length of diagonal of a brick => longest distance through brick
+    const float brickDia = length(brickLen)*2.f;
+    const int3 step = select(convert_int3(sign(rayDir)), (int3)(1), approxEq3(rayDir, (float3)(0)));
+    const float3 invRay = select(1.f/rayDir, (float3)(FLT_MAX), approxEq3(rayDir, (float3)(0.f)));
+    const float3 deltaT = convert_float3(step)*(brickLen*2.f*invRay);
+    const float3 rayOrigCell = (camPos + rayDir * tnear) - (float3)(-1.f);
 
-    float3 deltaT = convert_float3(step)*(brickLen*2.f*invRay);
+    // variables
+    // voxel's increment direction
     float3 voxIncr = (float3)0;
-
     // convert ray starting point to cell coordinates
-    float3 rayOrigCell = (camPos + rayDir * tnear) - (float3)(-1.f);
     int3 cell = clamp(convert_int3(floor(rayOrigCell / (2.f*brickLen))),
                         (int3)(0), convert_int3(bricksRes.xyz) - 1);
 
@@ -782,13 +789,11 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                             * (2.f*brickLen) - rayOrigCell) * invRay;
     int3 exit = step * bricksRes.xyz;
     exit = select(exit, (int3)(-1), exit < (int3)(0));
-    // length of diagonal of a brick => longest distance through brick
-    float brickDia = length(brickLen)*2.f;
 
-    // 3D DDA loop over low-res grid for image order empty space skipping
+    // 3D DDA: loop over low-res grid for image order empty space skipping
     while (t < tfar)
     {
-        float2 minMaxDensity = read_imagef(volBrickData, (int4)(cell, 0)).xy;
+        const float2 minMaxDensity = read_imagef(volBrickData, (int4)(cell, 0)).xy;
         // increment to next brick
         voxIncr.x = (tv.x <= tv.y) && (tv.x <= tv.z) ? 1 : 0;
         voxIncr.y = (tv.y <= tv.x) && (tv.y <= tv.z) ? 1 : 0;
@@ -800,12 +805,12 @@ __kernel void volumeRender(  __read_only  image3d_t volData
         tv += voxIncr*deltaT;
 
         // skip bricks that contain only fully transparent voxels
-        float alphaMax = read_imagef(tffData, linearSmp, minMaxDensity.y).w;
+        const float alphaMax = read_imagef(tffData, linearSmp, minMaxDensity.y).w;
         if (alphaMax < 1e-6f)
         {
-            uint prefixMin = read_imageui(tffPrefix, nearestSmp, minMaxDensity.x).x;
-            uint prefixMax = read_imageui(tffPrefix, nearestSmp, minMaxDensity.y).x;
-            if (prefixMin == prefixMax) // no change in prefix sum means whole brick is transparent
+            uint prefixMin = read_imageui(tffPrefix, linearSmp, minMaxDensity.x).x;
+            uint prefixMax = read_imageui(tffPrefix, linearSmp, minMaxDensity.y).x;
+            if (prefixMin == prefixMax) // no change in prefix sum -> whole brick is transparent
             {
                 t = t_exit;
                 continue;
@@ -819,9 +824,9 @@ __kernel void volumeRender(  __read_only  image3d_t volData
             pos = pos * 0.5f + 0.5f;    // normalize to [0,1]
 
             float4 gradient = (float4)(0.f);
-            if (render.illumType == 4)   // gradient magnitude based shading
+            if (render.illumType == 5)   // gradient magnitude based shading
             {
-                gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                gradient = -centralDiff(volData, (float4)(pos, 1.f));
                 tfColor = read_imagef(tffData, linearSmp, -gradient.w);
             }
             else    // density based shading and optional illumination
@@ -837,21 +842,24 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                     {
                         switch (render.illumType)
                         {
-                        case 1:     // central diff
-                            gradient = -gradientCentralDiffCsebfalvi(volData, (float4)(pos, 1.f), density);
+                        case 1:     // Csebfalvi's central diff
+                            gradient = -centralDiffCsebfalvi(volData, (float4)(pos, 1.f), density);
                             tfColor = read_imagef(tffData, linearSmp, -gradient.w);
                             break;
-                        case 2:     // central diff & transfer function
-                            gradient = -gradientCentralDiffTff(volData, (float4)(pos, 1.f), tffData);
+                        case 2:     // classical central diff
+                            gradient = -centralDiff(volData, (float4)(pos, 1.f));
                             break;
-                        case 3:     // sobel filter
+                        case 3:     // central diff & transfer function evaluation
+                            gradient = -centralDiffTff(volData, (float4)(pos, 1.f), tffData);
+                            break;
+                        case 4:     // sobel filter
                             gradient = -gradientSobel(volData, (float4)(pos, 1.f));
                         default:
                             break;
                         }
-                        if (render.illumType == 5)  // cel (aka toon) shading
+                        if (render.illumType == 6)  // cel (aka toon) shading
                         {
-                            gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                            gradient = -centralDiff(volData, (float4)(pos, 1.f));
                             tfColor.xyz = celShading(tfColor.xyz, -rayDir, gradient.xyz);
                         }
                         else
@@ -859,10 +867,10 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                             tfColor.xyz = illumination((float4)(pos, 1.f), tfColor.xyz, -rayDir, gradient.xyz);
                         }
                     }
-                    if (tfColor.w > 0.1f && raycast.contours) // edge enhancement
+                    if (raycast.contours) // edge enhancement // tfColor.w > 0.1f &&
                     {
                         if (!render.illumType) // no illumination, i.e. we haven't calculated the gradient yet
-                            gradient = -gradientCentralDiff(volData, (float4)(pos, 1.f));
+                            gradient = -centralDiff(volData, (float4)(pos, 1.f));
                         tfColor.xyz *= fabs(dot(rayDir, gradient.xyz));
                     }
                 }
@@ -900,7 +908,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
             {
                 if (raycast.useAO)  // ambient occlusion only on solid surfaces
                 {
-                    float3 n = -gradientCentralDiff(volData, (float4)(pos, 1.f)).xyz;
+                    float3 n = -centralDiff(volData, (float4)(pos, 1.f)).xyz;
                     float ao = calcAO(n, &ui_rand, volData, pos, length(voxLen)*0.9f, length(voxLen)*5.f, tffData);
                     result.xyz *= 1.f - 0.5f*ao;
                 }

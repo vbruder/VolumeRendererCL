@@ -330,6 +330,11 @@
           </item>
           <item>
            <property name="text">
+            <string>Csébfalvi's central differences </string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
             <string>Central differences</string>
            </property>
           </item>
