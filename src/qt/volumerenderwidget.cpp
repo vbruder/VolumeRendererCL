@@ -970,8 +970,8 @@ void VolumeRenderWidget::setRawTransferFunction(std::vector<unsigned char> tff)
  */
 void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
 {
-    const int tffSize = 1024;
-    const qreal granularity = 8192.0;
+    const int tffSize = 16384;  // TODO: set based on device capabilities
+    const qreal granularity = qreal(16 * tffSize);
     std::vector<uchar> tff(tffSize*4, uchar(0));
     std::vector<unsigned int> prefixSum(tffSize);
 
@@ -982,7 +982,7 @@ void VolumeRenderWidget::updateTransferFunction(QGradientStops stops)
         interpolator.setKeyValueAt(stop.first, stop.second);
 
 #pragma omp for
-    for (int i = 0; i < int(tffSize); ++i)
+    for (int i = 0; i < tffSize; ++i)
     {
         interpolator.setCurrentTime(qRound(double(i)/double(tffSize) * granularity));
         tff.at(size_t(i)*4 + 0) = uchar(qMax(0, interpolator.currentValue().value<QColor>().red()  -3));

@@ -178,6 +178,7 @@ float3 getNeighborSamples(read_only image3d_t vol, const float4 pos, float3 *s0,
 
 // Compute gradient amd density correction, based on Csébfalvi's
 // SIGGRAPH 2019 paper "Beyond Trilinear Interpolation: Higher Quality for Free"
+// https://doi.org/10.1145/3306346.3323032
 float4 centralDiffCsebfalvi(read_only image3d_t vol, const float4 pos, float densitySample)
 {
     float3 s0, s1;
@@ -862,7 +863,7 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                             gradient = -centralDiff(volData, (float4)(pos, 1.f));
                             tfColor.xyz = celShading(tfColor.xyz, -rayDir, gradient.xyz);
                         }
-                        else
+                        else    // phong style illumination
                         {
                             tfColor.xyz = illumination((float4)(pos, 1.f), tfColor.xyz, -rayDir, gradient.xyz);
                         }
@@ -898,12 +899,24 @@ __kernel void volumeRender(  __read_only  image3d_t volData
                 tfColor.w *= depthCue;
             }
 
-            // Taylor expansion approximation
-            opacity = 1.f - native_powr(1.f - tfColor.w, refSamplingInterval);
-            result.xyz = result.xyz - tfColor.xyz * opacity * (1.f - alpha);
-            alpha = alpha + opacity * (1.f - alpha);
+            if (false) // MIP
+            {
+                alpha = max(alpha, density);
+                result = read_imagef(tffData, linearSmp, alpha);
+                alpha = result.w;
+            }
+            else
+            {
+                // Taylor expansion approximation
+                opacity = 1.f - native_powr(1.f - tfColor.w, refSamplingInterval);
+                result.xyz = result.xyz - tfColor.xyz * opacity * (1.f - alpha);
+                alpha = alpha + opacity * (1.f - alpha);
+            }
 
-            if (t >= tfar) break;
+            if (t >= tfar)
+            {
+                break;
+            }
             if (alpha > ERT_THRESHOLD)   // early ray termination check
             {
                 if (raycast.useAO)  // ambient occlusion only on solid surfaces

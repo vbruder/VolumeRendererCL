@@ -524,7 +524,7 @@ void VolumeRenderCL::raycast(const size_t width, const size_t height)
     ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
     _lastExecTime = static_cast<double>(end - start)*1e-9;
 //        std::cout << "Kernel time: " << _lastExecTime << std::endl << std::endl;
-#endif
+#endif // CL_QUEUE_PROFILING_ENABLE
 }
 
 /**
@@ -650,16 +650,19 @@ void VolumeRenderCL::generateBricks(const float brickDivisor)
                                       bricksTexSize.at(1) + (lDim - bricksTexSize.at(1) % lDim),
                                       bricksTexSize.at(2) + (lDim - bricksTexSize.at(2) % lDim));
             cl::NDRange localThreads(lDim, lDim, lDim);
+            cl::Event ndrEvt;
             _queueCL.enqueueNDRangeKernel(_genBricksKernel, cl::NullRange,
-                                          globalThreads, localThreads);
+                                          globalThreads, localThreads, nullptr, &ndrEvt);
             _queueCL.finish();
+#ifdef CL_QUEUE_PROFILING_ENABLE
             // profiling
-//            cl_ulong start = 0;
-//            cl_ulong end = 0;
-//            ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
-//            ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-//            double execTime = static_cast<double>(end - start)*1e-9;
-//            std::cout << "Build up time: " << execTime << std::endl;
+            cl_ulong start = 0;
+            cl_ulong end = 0;
+            ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
+            ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
+            double execTime = static_cast<double>(end - start)*1e-9;
+            std::cout << "Bricks build up time: " << execTime << " seconds." << std::endl;
+#endif // CL_QUEUE_PROFILING_ENABLE
         }
     }
     catch (cl::Error err)
@@ -742,6 +745,9 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
         throw std::runtime_error( "ERROR: " + std::string(err.what()) + "("
                                   + getCLErrorString(err.err()) + ")");
     }
+
+    // generate brick representation for object order empty space skipping
+    generateBricks();
 }
 
 /**
@@ -771,8 +777,6 @@ size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeProps
     {
         throw std::runtime_error(e.what());
     }
-    // generate brick representation for object order empty space skipping
-    generateBricks();
 
     this->_volLoaded = true;
     return _dr.data().size();
