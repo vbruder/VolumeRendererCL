@@ -3,7 +3,7 @@
  *
  * \author Valentin Bruder
  *
- * \copyright Copyright (C) 2018 Valentin Bruder
+ * \copyright Copyright (C) 2018-2020 Valentin Bruder
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -51,11 +51,12 @@ public:
     {
         switch (f)
         {
-            case UCHAR: return "UCHAR";
-            case USHORT: return "USHORT";
-            case FLOAT: return "FLOAT";
-            case DOUBLE: return "DOUBLE";
-            case UNKNOWN_FORMAT: return "UNKNOWN_FORMAT";
+            case UCHAR: return "UCHAR"; break;
+            case USHORT: return "USHORT"; break;
+            case FLOAT: return "FLOAT"; break;
+            case DOUBLE: return "DOUBLE"; break;
+            case UNKNOWN_FORMAT: return "UNKNOWN_FORMAT"; break;
+            default: return "UNKNOWN_FORMAT";
         }
     }
 
@@ -105,11 +106,12 @@ public:
         {
             switch (f)
             {
-                case UNKNOWN_FORMAT: return "UNKNOWN FORMAT";
-                case UCHAR: return "UCHAR";
-                case USHORT: return "USHORT";
-                case FLOAT: return "FLOAT";
-                case DOUBLE: return "DOUBLE";
+                case UNKNOWN_FORMAT: return "UNKNOWN FORMAT"; break;
+                case UCHAR: return "UCHAR"; break;
+                case USHORT: return "USHORT"; break;
+                case FLOAT: return "FLOAT"; break;
+                case DOUBLE: return "DOUBLE"; break;
+                default: return "UNKNOWN FORMAT"; break;
             }
         }
     };

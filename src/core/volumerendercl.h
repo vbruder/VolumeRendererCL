@@ -3,7 +3,7 @@
  *
  * \author Valentin Bruder
  *
- * \copyright Copyright (C) 2018 Valentin Bruder
+ * \copyright Copyright (C) 2018-2020 Valentin Bruder
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -424,12 +424,12 @@ private:
     /**
      * @brief Initialize OpenCL kernel with default paramters.
      * @param fileName File name of the kernel source file.
-     * @param buildFlags Comiler flags for building the kernel.
+     * @param buildFlags Compiler flags for building the kernel.
      */
     void initKernel(const std::string fileName, const std::string buildFlags = "");
 
     /**
-     * @brief Rund the actual raycast on the device.
+     * @brief Run the actual raycast on the device.
      * @param width Width of the frame.
      * @param height Height of the Frame.
      */
@@ -472,7 +472,7 @@ private:
     bool _volLoaded = false;
     size_t _timestep = 0;
     double _lastExecTime = 0.0;
-    std::valarray<float> _modelScale;
+    std::valarray<float> _modelScale = {1.0, 1.0, 1.0};
     bool _useGL = true;
     bool _useImgESS = false;
     std::string _currentDevice;
@@ -486,4 +486,6 @@ private:
     pathtrace_params _pathtrace_params;
 
     DatRawReader _dr;
+
+    std::array<double, 3> _state = {1.0, 0, 0};
 };

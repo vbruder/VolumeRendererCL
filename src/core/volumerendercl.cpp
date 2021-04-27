@@ -3,7 +3,7 @@
  *
  * \author Valentin Bruder
  *
- * \copyright Copyright (C) 2018 Valentin Bruder
+ * \copyright Copyright (C) 2018-2020 Valentin Bruder
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -29,7 +29,7 @@
 
 #include <omp.h>
 
-static const size_t LOCAL_SIZE = 8;    // 8*8=64 is wavefront size or 2*warp size
+static const size_t LOCAL_SIZE = 8; // 8*8=64 is wavefront size or 2*warp size
 
 /**
  * @brief RoundPow2
@@ -53,20 +53,14 @@ static size_t RoundPow2(size_t n)
     return (val - n) > (n - x) ? x : val;
 }
 
-
 /**
  * @brief VolumeRenderCL::VolumeRenderCL
  */
-VolumeRenderCL::VolumeRenderCL() :
-    _volLoaded(false)
-  , _lastExecTime(0.0)
-  , _modelScale{1.0, 1.0, 1.0}
-  , _useGL(true)
-  , _useImgESS(false)
+VolumeRenderCL::VolumeRenderCL() : _volLoaded(false), _lastExecTime(0.0),
+                                   _modelScale{1.0, 1.0, 1.0}, _useGL(true), _useImgESS(false)
 {
     std::mt19937 _generator(42);
 }
-
 
 /**
  * @brief VolumeRenderCL::~VolumeRenderCL
@@ -74,7 +68,6 @@ VolumeRenderCL::VolumeRenderCL() :
 VolumeRenderCL::~VolumeRenderCL()
 {
 }
-
 
 /**
  * @brief VolumeRenderCL::logCLerror
@@ -84,10 +77,9 @@ void VolumeRenderCL::logCLerror(cl::Error error)
 {
     std::cerr << "Error in " << error.what() << ": "
               << getCLErrorString(error.err()) << std::endl;
-    throw std::runtime_error( "ERROR: " + std::string(error.what()) + " ("
-                              + getCLErrorString(error.err()) + ")");
+    throw std::runtime_error("ERROR: " + std::string(error.what())
+                             + " (" + getCLErrorString(error.err()) + ")");
 }
-
 
 /**
  * @brief VolumeRenderCL::initialize
@@ -118,7 +110,7 @@ void VolumeRenderCL::initialize(bool useGL, bool useCPU, cl_vendor vendor,
                 std::vector<cl::Device> devices;
                 platforms[static_cast<size_t>(platformId)].getDevices(type, &devices);
 
-                for(unsigned int i = 0; i < devices.size(); ++i)
+                for (unsigned int i = 0; i < devices.size(); ++i)
                 {
                     if (devices[i].getInfo<CL_DEVICE_NAME>() == deviceName)
                     {
@@ -158,7 +150,6 @@ void VolumeRenderCL::initialize(bool useGL, bool useCPU, cl_vendor vendor,
     }
 }
 
-
 /**
  * @brief VolumeRenderCL::initKernel
  * @param fileName
@@ -186,7 +177,6 @@ void VolumeRenderCL::initKernel(const std::string fileName, const std::string bu
         logCLerror(err);
     }
 }
-
 
 /**
  * @brief VolumeRenderCL::setMemObjects
@@ -218,7 +208,6 @@ void VolumeRenderCL::setMemObjectsRaycast(const size_t t)
     setRenderingArgs();
 }
 
-
 /**
  * @brief VolumeRenderCL::setMemObjectsBrickGen
  */
@@ -229,7 +218,6 @@ void VolumeRenderCL::setMemObjectsBrickGen(const size_t t)
     _genBricksKernel.setArg(VOLUME, _volumesMem.at(t));
     _genBricksKernel.setArg(BRICKS, _bricksMem.at(t));
 }
-
 
 /**
  * @brief VolumeRenderCL::setMemObjectsDownsampling
@@ -274,7 +262,7 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
         format.image_channel_data_type = CL_FLOAT;
         formatMultiplier = 4;
     }
-    else    // double not supported yet
+    else // double not supported yet
     {
         throw std::invalid_argument("Unknown or invalid volume data format.");
     }
@@ -293,22 +281,21 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
         cl::Event ndrEvt;
         _queueCL.enqueueNDRangeKernel(_downsamplingKernel, cl::NullRange,
                                       globalThreads, cl::NullRange, nullptr, &ndrEvt);
-        _queueCL.finish();    // global sync
+        _queueCL.finish(); // global sync
 
         // read back volume data
-        std::vector<unsigned char> outputData(texSize.at(0)*texSize.at(1)*texSize.at(2)
-                                              *formatMultiplier);
+        std::vector<unsigned char> outputData(texSize.at(0) * texSize.at(1) * texSize.at(2) * formatMultiplier);
         std::array<size_t, 3> origin = {{0, 0, 0}};
         std::array<size_t, 3> region = {{texSize.at(0), texSize.at(1), texSize.at(2)}};
         _queueCL.enqueueReadImage(lowResVol, CL_TRUE, origin, region, 0, 0, outputData.data());
-        _queueCL.flush();    // global sync
+        _queueCL.flush(); // global sync
 
         // dump to file
         size_t lastindex = _dr.properties().dat_file_name.find_last_of(".");
         std::string rawname = _dr.properties().dat_file_name.substr(0, lastindex);
         rawname += "_";
         rawname += std::to_string(texSize.at(0));
-        std::ofstream file(rawname + ".raw", std::ios::out|std::ios::binary);
+        std::ofstream file(rawname + ".raw", std::ios::out | std::ios::binary);
         std::cout << "Writing downsampled volume data to "
                   << rawname << "_" << std::to_string(texSize.at(0)) << ".raw ...";
         std::copy(outputData.cbegin(), outputData.cend(),
@@ -322,7 +309,7 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
         std::string rawnameShort = rawname.substr(firstindex + 1, lastindex);
         datFile << "ObjectFileName: \t" << rawnameShort << ".raw\n";
         datFile << "Resolution: \t\t" << texSize.at(0) << " " << texSize.at(1) << " "
-                                      << texSize.at(2) << "\n";
+                << texSize.at(2) << "\n";
         datFile << "SliceThickness: \t" << _dr.properties().slice_thickness.at(0) << " "
                 << _dr.properties().slice_thickness.at(1) << " "
                 << _dr.properties().slice_thickness.at(2)
@@ -339,7 +326,6 @@ const std::string VolumeRenderCL::volumeDownsampling(const size_t t, const int f
     }
 }
 
-
 /**
  * @brief VolumeRenderCL::calcScaling
  */
@@ -348,18 +334,17 @@ void VolumeRenderCL::calcScaling()
     if (!_dr.has_data())
         return;
 
-    _modelScale = { static_cast<float>(_dr.properties().volume_res.at(0)),
-                    static_cast<float>(_dr.properties().volume_res.at(1)),
-                    static_cast<float>(_dr.properties().volume_res.at(2)) };
+    _modelScale = {static_cast<float>(_dr.properties().volume_res.at(0)),
+                   static_cast<float>(_dr.properties().volume_res.at(1)),
+                   static_cast<float>(_dr.properties().volume_res.at(2))};
 
-    std::valarray<float> thickness = { static_cast<float>(_dr.properties().slice_thickness.at(0)),
-                                       static_cast<float>(_dr.properties().slice_thickness.at(1)),
-                                       static_cast<float>(_dr.properties().slice_thickness.at(2)) };
-    _modelScale *= thickness*(1.f/thickness[0]);
-#undef max  // error here if we don't undef max
+    std::valarray<float> thickness = {static_cast<float>(_dr.properties().slice_thickness.at(0)),
+                                      static_cast<float>(_dr.properties().slice_thickness.at(1)),
+                                      static_cast<float>(_dr.properties().slice_thickness.at(2))};
+    _modelScale *= thickness * (1.f / thickness[0]);
+#undef max // error here if we don't undef max
     _modelScale = _modelScale.max() / _modelScale;
 }
-
 
 /**
  * @brief VolumeRenderCL::scaleVolume
@@ -369,7 +354,6 @@ void VolumeRenderCL::scaleVolume(std::valarray<float> scale)
 {
     _modelScale *= scale;
 }
-
 
 /**
  * @brief VolumeRenderCL::updateKernelArgs
@@ -388,7 +372,6 @@ void VolumeRenderCL::updateView(const std::array<float, 16> viewMat)
     resetIteration();
 }
 
-
 /**
  * @brief VolumeRenderCL::updateStepSize
  * @param stepSize
@@ -404,9 +387,12 @@ void VolumeRenderCL::updateSamplingRate(const double samplingRate)
  */
 void VolumeRenderCL::setCameraArgs()
 {
-    try{
+    try
+    {
         _raycastKernel.setArg(CAMERA, _camera_params);
-    } catch (cl::Error err) {
+    }
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
 }
@@ -416,9 +402,12 @@ void VolumeRenderCL::setCameraArgs()
  */
 void VolumeRenderCL::setRenderingArgs()
 {
-    try{
+    try
+    {
         _raycastKernel.setArg(RENDERING, _rendering_params);
-    } catch (cl::Error err) {
+    }
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
 }
@@ -428,9 +417,12 @@ void VolumeRenderCL::setRenderingArgs()
  */
 void VolumeRenderCL::setRaycastArgs()
 {
-    try{
+    try
+    {
         _raycastKernel.setArg(RAYCAST, _raycast_params);
-    } catch (cl::Error err) {
+    }
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
 }
@@ -440,9 +432,12 @@ void VolumeRenderCL::setRaycastArgs()
  */
 void VolumeRenderCL::setPathtraceArgs()
 {
-    try{
+    try
+    {
         _raycastKernel.setArg(PATHTRACE, _pathtrace_params);
-    } catch (cl::Error err) {
+    }
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
 }
@@ -480,18 +475,18 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
         }
 
         uint os = 1;
-        std::vector<uint> initBuff((width/LOCAL_SIZE + os)*(height/LOCAL_SIZE + os), 1u);
+        std::vector<uint> initBuff((width / LOCAL_SIZE + os) * (height / LOCAL_SIZE + os), 1u);
         format = cl::ImageFormat(CL_R, CL_UNSIGNED_INT8);
         _outputHitMem = cl::Image2D(_contextCL, CL_MEM_READ_WRITE, format,
-                                    width/LOCAL_SIZE + os, height/LOCAL_SIZE + os);
+                                    width / LOCAL_SIZE + os, height / LOCAL_SIZE + os);
         _inputHitMem = cl::Image2D(_contextCL, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, format,
-                                   width/LOCAL_SIZE + os, height/LOCAL_SIZE + os, 0,
-                                   const_cast<uint*>(initBuff.data()));
+                                   width / LOCAL_SIZE + os, height / LOCAL_SIZE + os, 0,
+                                   const_cast<uint *>(initBuff.data()));
 
         format.image_channel_order = CL_RGBA;
         format.image_channel_data_type = CL_UNORM_INT8;
-        _inAccumulate  = cl::Image2D(_contextCL, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS,
-                                     format, width, height);
+        _inAccumulate = cl::Image2D(_contextCL, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS,
+                                    format, width, height);
         _outAccumulate = cl::Image2D(_contextCL, CL_MEM_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS,
                                      format, width, height);
     }
@@ -509,22 +504,30 @@ void VolumeRenderCL::updateOutputImg(const size_t width, const size_t height, GL
 void VolumeRenderCL::raycast(const size_t width, const size_t height)
 {
     setMemObjectsRaycast(_timestep);
-    cl::NDRange globalThreads(width  - (width  % LOCAL_SIZE),
+    cl::NDRange globalThreads(width - (width % LOCAL_SIZE),
                               height - (height % LOCAL_SIZE));
     cl::NDRange localThreads(LOCAL_SIZE, LOCAL_SIZE);
     cl::Event ndrEvt;
     _queueCL.enqueueNDRangeKernel(_raycastKernel, cl::NullRange,
                                   globalThreads, localThreads, nullptr, &ndrEvt);
-    _queueCL.finish();    // global sync
+    _queueCL.finish(); // global sync
 
 #ifdef CL_QUEUE_PROFILING_ENABLE
     cl_ulong start = 0;
     cl_ulong end = 0;
     ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
     ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-    _lastExecTime = static_cast<double>(end - start)*1e-9;
+    _lastExecTime = static_cast<double>(end - start) * 1e-9;
 //        std::cout << "Kernel time: " << _lastExecTime << std::endl << std::endl;
 #endif // CL_QUEUE_PROFILING_ENABLE
+}
+
+static std::array<double, 3> thomas(std::array<double, 3> state, float dt)
+{
+    double t_const = 0.18;
+    return { state[0] + (sin(state[1]) - t_const * state[0]) * dt,
+             state[1] + (sin(state[2]) - t_const * state[1]) * dt,
+             state[2] + (sin(state[0]) - t_const * state[2]) * dt };
 }
 
 /**
@@ -537,6 +540,22 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
         return;
     try // opencl scope
     {
+        if (false)  // only works w/o ESS!
+        {
+            _state = thomas(_state, 0.2); // in range [-4.23, +4.23]
+            std::array<cl::size_type, 3> voxelCoords;
+            for (size_t i = 0; i < _state.size(); ++i)
+            {
+                double res = double(_dr.properties().volume_res[0]);
+                int c_i = (_state.at(i) + 4.22294048629151479) * (res/(2.0 * 4.2294048629151479));
+                c_i = std::clamp(c_i, 0, int(res) - 1);
+                voxelCoords.at(i) = static_cast<cl::size_type>(c_i);
+            }
+
+            unsigned short data(50000);
+            _queueCL.enqueueWriteImage(_volumesMem.at(0), CL_TRUE, voxelCoords, {1, 1, 1}, 0, 0, &data);
+        }
+
         std::vector<cl::Memory> memObj;
         memObj.push_back(_outputMem);
         _queueCL.enqueueAcquireGLObjects(&memObj);
@@ -550,7 +569,7 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
             _outputHitMem = _inputHitMem;
             _inputHitMem = tmp;
         }
-        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0,0,0}, {0,0,0},
+        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, {0, 0, 0}, {0, 0, 0},
                                   {width, height, 1});
         _rendering_params.iteration++;
         _queueCL.enqueueReleaseGLObjects(&memObj);
@@ -560,7 +579,6 @@ void VolumeRenderCL::runRaycast(const size_t width, const size_t height)
         logCLerror(err);
     }
 }
-
 
 /**
  * @brief VolumeRenderCL::runRaycastNoGL
@@ -578,7 +596,7 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
     {
         raycast(width, height);
 
-        output.resize(width * height * 4);  // RGBA
+        output.resize(width * height * 4); // RGBA
         cl::Event readEvt;
         std::array<size_t, 3> origin = {{0, 0, 0}};
         std::array<size_t, 3> region = {{width, height, 1}};
@@ -589,10 +607,10 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
                                   output.data(),
                                   nullptr, &readEvt);
 
-        // FIXME: continuus rendering without OpenGL context sharing
-//        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, origin, origin, region);
-//        _queueCL.enqueueWriteImage(_inAccumulate, CL_TRUE, origin, region, 0, 0, output.data());
-//        _rendering_params.iteration++;
+        // FIXME: continuous rendering without OpenGL context sharing
+        //        _queueCL.enqueueCopyImage(_outAccumulate, _inAccumulate, origin, origin, region);
+        //        _queueCL.enqueueWriteImage(_inAccumulate, CL_TRUE, origin, region, 0, 0, output.data());
+        //        _rendering_params.iteration++;
         _queueCL.finish();
     }
     catch (cl::Error err)
@@ -600,7 +618,6 @@ void VolumeRenderCL::runRaycastNoGL(const size_t width, const size_t height,
         logCLerror(err);
     }
 }
-
 
 /**
  * @brief VolumeRenderCL::generateBricks
@@ -623,7 +640,7 @@ void VolumeRenderCL::generateBricks(const float brickDivisor)
 
         // set memory object
         cl::ImageFormat format;
-        format.image_channel_order = CL_RG;  // CL_RG for min+max
+        format.image_channel_order = CL_RG; // CL_RG for min+max
         if (_dr.properties().format == DatRawReader::UCHAR)
             format.image_channel_data_type = CL_UNORM_INT8;
         else if (_dr.properties().format == DatRawReader::USHORT)
@@ -645,7 +662,7 @@ void VolumeRenderCL::generateBricks(const float brickDivisor)
                                              bricksTexSize.at(2)));
             // run aggregation kernel
             setMemObjectsBrickGen(i);
-            size_t lDim = 4;    // local work group dimension: 4*4*4=64
+            size_t lDim = 4; // local work group dimension: 4*4*4=64
             cl::NDRange globalThreads(bricksTexSize.at(0) + (lDim - bricksTexSize.at(0) % lDim),
                                       bricksTexSize.at(1) + (lDim - bricksTexSize.at(1) % lDim),
                                       bricksTexSize.at(2) + (lDim - bricksTexSize.at(2) % lDim));
@@ -660,15 +677,14 @@ void VolumeRenderCL::generateBricks(const float brickDivisor)
             cl_ulong end = 0;
             ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
             ndrEvt.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
-            double execTime = static_cast<double>(end - start)*1e-9;
+            double execTime = static_cast<double>(end - start) * 1e-9;
             std::cout << "Bricks build up time: " << execTime << " seconds." << std::endl;
 #endif // CL_QUEUE_PROFILING_ENABLE
         }
     }
     catch (cl::Error err)
     {
-        throw std::runtime_error( "ERROR: " + std::string(err.what()) + "("
-                                  + getCLErrorString(err.err()) + ")");
+        throw std::runtime_error("ERROR: " + std::string(err.what()) + "(" + getCLErrorString(err.err()) + ")");
     }
 }
 
@@ -688,8 +704,8 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
             format.image_channel_order = CL_R;
         else if (co == "RG")
             format.image_channel_order = CL_RG;
-//        else if (co == "RGB")   // This format can only be used if channel data type = CL_UNORM_SHORT_565, CL_UNORM_SHORT_555 or CL_UNORM_INT101010.
-//            format.image_channel_order = CL_RGB;
+        //        else if (co == "RGB")   // This format can only be used if channel data type = CL_UNORM_SHORT_565, CL_UNORM_SHORT_555 or CL_UNORM_INT101010.
+        //            format.image_channel_order = CL_RGB;
         else if (co == "RGBA")
             format.image_channel_order = CL_RGBA;
         else if (co == "ARGB")
@@ -724,8 +740,9 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
 
         for (const auto &v : volumeData)
         {
-            if(_dr.properties().volume_res[0] * _dr.properties().volume_res[1] *
-                     _dr.properties().volume_res[2] * formatMultiplier > v.size())
+            if (_dr.properties().volume_res[0] * _dr.properties().volume_res[1] *
+                    _dr.properties().volume_res[2] * formatMultiplier >
+                v.size())
             {
                 _dr.clearData();
                 throw std::runtime_error("Volume size does not match size specified in dat file.");
@@ -737,13 +754,12 @@ void VolumeRenderCL::volDataToCLmem(const std::vector<std::vector<char>> &volume
                                               _dr.properties().volume_res[1],
                                               _dr.properties().volume_res[2],
                                               0, 0,
-                                              const_cast<char*>(v.data())));
+                                              const_cast<char *>(v.data())));
         }
     }
     catch (cl::Error err)
     {
-        throw std::runtime_error( "ERROR: " + std::string(err.what()) + "("
-                                  + getCLErrorString(err.err()) + ")");
+        throw std::runtime_error("ERROR: " + std::string(err.what()) + "(" + getCLErrorString(err.err()) + ")");
     }
 
     // generate brick representation for object order empty space skipping
@@ -767,7 +783,7 @@ size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeProps
     try
     {
         _dr.read_files(volumeProps);
-        std::cout << _dr.data().front().size()*_dr.data().size() << " bytes have been read from "
+        std::cout << _dr.data().front().size() * _dr.data().size() << " bytes have been read from "
                   << _dr.data().size() << " file(s)." << std::endl;
         std::cout << _dr.properties().to_string() << std::endl;
         volDataToCLmem(_dr.data());
@@ -782,7 +798,6 @@ size_t VolumeRenderCL::loadVolumeData(const DatRawReader::Properties volumeProps
     return _dr.data().size();
 }
 
-
 /**
  * @brief VolumeRenderCL::hasData
  * @return
@@ -792,7 +807,6 @@ bool VolumeRenderCL::hasData() const
     return this->_volLoaded;
 }
 
-
 /**
  * @brief VolumeRenderCL::getResolution
  * @return
@@ -800,7 +814,7 @@ bool VolumeRenderCL::hasData() const
 const std::array<size_t, 4> VolumeRenderCL::getResolution() const
 {
     if (!_dr.has_data())
-        return std::array<size_t, 4> {{0, 0, 0, 1}};
+        return std::array<size_t, 4>{{0, 0, 0, 1}};
     return _dr.properties().volume_res;
 }
 
@@ -822,13 +836,12 @@ void VolumeRenderCL::setBBox(float bl_x, float bl_y, float bl_z,
     resetIteration();
 }
 
-
 /**
  * @brief VolumeRenderCL::getHistogram
  * @param timestep
  * @return
  */
-const std::array<double, 256> & VolumeRenderCL::getHistogram(unsigned int timestep)
+const std::array<double, 256> &VolumeRenderCL::getHistogram(unsigned int timestep)
 {
     if (!_dr.has_data())
         throw std::invalid_argument("Invalid timestep for histogram data.");
@@ -854,10 +867,10 @@ void VolumeRenderCL::setTransferFunction(std::vector<unsigned char> &tff)
         _tffMem = cl::Image1D(_contextCL, flags, format, tff.size() / 4, tff.data());
 
         std::vector<uint> prefixSum(tff.size() / 4, 0);
-        // copy only alpha values (every fourth element)
-        #pragma omp parallel for
+// copy only alpha values (every fourth element)
+#pragma omp parallel for
         for (int i = 3; i < int(tff.size()); i += 4)
-            prefixSum.at(i/4) = (uint(tff.at(i)));
+            prefixSum.at(i / 4) = (uint(tff.at(i)));
         std::partial_sum(prefixSum.begin(), prefixSum.end(), prefixSum.begin());
         setTffPrefixSum(prefixSum);
         resetIteration();
@@ -867,7 +880,6 @@ void VolumeRenderCL::setTransferFunction(std::vector<unsigned char> &tff)
         logCLerror(err);
     }
 }
-
 
 /**
  * @brief VolumeRenderCL::setTffPrefixSum
@@ -913,7 +925,6 @@ void VolumeRenderCL::setIllumination(unsigned int illum)
     setRenderingArgs();
 }
 
-
 /**
  * @brief VolumeRenderCL::setAmbientOcclusion
  * @param illum
@@ -924,7 +935,6 @@ void VolumeRenderCL::setAmbientOcclusion(bool ao)
     setRaycastArgs();
 }
 
-
 /**
  * @brief VolumeRenderCL::setShowESS
  * @param showESS
@@ -934,7 +944,6 @@ void VolumeRenderCL::setShowESS(bool showESS)
     _rendering_params.showEss = static_cast<cl_uint>(showESS);
     setRenderingArgs();
 }
-
 
 /**
  * @brief VolumeRenderCL::setLinearSampling
@@ -1033,7 +1042,6 @@ double VolumeRenderCL::getLastExecTime()
     return _lastExecTime;
 }
 
-
 /**
  * @brief VolumeRenderCL::getPlatformNames
  * @return
@@ -1045,10 +1053,11 @@ const std::vector<std::string> VolumeRenderCL::getPlatformNames()
     {
         std::vector<cl::Platform> platforms;
         cl::Platform::get(&platforms);
-        for(unsigned int i = 0; i < platforms.size(); ++i)
+        for (unsigned int i = 0; i < platforms.size(); ++i)
             names.push_back(platforms[i].getInfo<CL_PLATFORM_NAME>());
     }
-    catch (cl::Error err) {
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
     return names;
@@ -1065,8 +1074,10 @@ const std::vector<std::string> VolumeRenderCL::getDeviceNames(size_t platformId,
 {
     std::vector<std::string> names;
     cl_device_type t = CL_DEVICE_TYPE_ALL;
-    if (type == "GPU") t = CL_DEVICE_TYPE_GPU;
-    else if (type == "CPU") t = CL_DEVICE_TYPE_CPU;
+    if (type == "GPU")
+        t = CL_DEVICE_TYPE_GPU;
+    else if (type == "CPU")
+        t = CL_DEVICE_TYPE_CPU;
     try
     {
         std::vector<cl::Platform> platforms;
@@ -1074,10 +1085,11 @@ const std::vector<std::string> VolumeRenderCL::getDeviceNames(size_t platformId,
         std::vector<cl::Device> devices;
         platforms[platformId].getDevices(t, &devices);
 
-        for(unsigned int i = 0; i < devices.size(); ++i)
+        for (unsigned int i = 0; i < devices.size(); ++i)
             names.push_back(devices[i].getInfo<CL_DEVICE_NAME>());
     }
-    catch (cl::Error err) {
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
 
@@ -1106,7 +1118,7 @@ void VolumeRenderCL::createEnvironmentMap(const std::string &file_name)
     format.image_channel_data_type = CL_FLOAT;
     if (file_name.empty()) // initialize with white
     {
-        cl_float4 d = {{1,1,1,1}};
+        cl_float4 d = {{1, 1, 1, 1}};
         _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY, format, 1, 1, 0, &d);
     }
     else
@@ -1119,10 +1131,12 @@ void VolumeRenderCL::createEnvironmentMap(const std::string &file_name)
         std::cout << "Loaded environment map " << file_name << std::endl;
     }
 
-    try {
+    try
+    {
         _raycastKernel.setArg(ENVIRONMENT, _environmentMap);
     }
-    catch (cl::Error err) {
+    catch (cl::Error err)
+    {
         logCLerror(err);
     }
 }
