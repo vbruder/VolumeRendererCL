@@ -1106,8 +1106,8 @@ void VolumeRenderCL::createEnvironmentMap(const std::string &file_name)
     format.image_channel_data_type = CL_FLOAT;
     if (file_name.empty()) // initialize with white
     {
-        cl_float4 d = {{1,1,1,1}};
-        _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY, format, 1, 1, 0, &d);
+        cl_float4 d = {{1.f,1.f,1.f,1.f}};
+        _environmentMap = cl::Image2D(_contextCL, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, format, 1, 1, 0, &d);
     }
     else
     {
