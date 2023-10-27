@@ -1,6 +1,6 @@
 # Description #
 
-```c++
+```C++
 Header header
 
 uint64 id
